@@ -1,7 +1,7 @@
 ## General Instructions
 This NestJS application can simply be deployed locally using the standard node deployment process. 
 
-For this application, there is a server configuration required to access the data sources. At this moment, it is done using the .env file in the project main directory. create a file manually and configure the following four properties in the created file. Please note that key must be modified.
+For this application, there is a server configuration required to access the data sources. At this moment, it is done using the .env file in the project main directory. create a file manually and configure the following four properties in the created file. Please note that key must not be modified.
 
 ```bash
 $ MONGO_SERVER=mongodb://localhost:27017
