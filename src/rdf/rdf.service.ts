@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
-import { 
-  IFCEntity, 
-  IFCEntityResponse, 
-  IFCEntityResult, 
-  IFCEntityListRequest 
+import {
+  IFCEntity,
+  IFCEntityResponse,
+  IFCEntityResult,
+  IFCEntityListRequest,
 } from './entities/rdfentity.entity';
 
 interface SPARQLResult {
@@ -42,9 +42,9 @@ export class RdfService {
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/sparql-results+json'
-          }
-        }
+            Accept: 'application/sparql-results+json',
+          },
+        },
       );
       return response.data;
     } catch (error) {
@@ -58,7 +58,7 @@ export class RdfService {
    */
   async getAllIFCSpaces(): Promise<IFCEntityResult[]> {
     this.logger.log('Fetching all IFC Spaces from RDF repository');
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -85,22 +85,22 @@ export class RdfService {
    */
   async getEntitiesByType(entityType: string): Promise<IFCEntityResult[]> {
     this.logger.log(`Fetching IFC entities of type: ${entityType}`);
-    
+
     // Map common IFC types to their ontology names
     const ifcTypeMap: Record<string, string> = {
-      'IFCSpace': 'IfcSpace',
-      'IFCWall': 'IfcWall', 
-      'IFCDoor': 'IfcDoor',
-      'IFCWindow': 'IfcWindow',
-      'IFCBeam': 'IfcBeam',
-      'IFCColumn': 'IfcColumn',
-      'IFCSlab': 'IfcSlab',
-      'IFCBuildingStorey': 'IfcBuildingStorey',
-      'IFCBuilding': 'IfcBuilding'
+      IFCSpace: 'IfcSpace',
+      IFCWall: 'IfcWall',
+      IFCDoor: 'IfcDoor',
+      IFCWindow: 'IfcWindow',
+      IFCBeam: 'IfcBeam',
+      IFCColumn: 'IfcColumn',
+      IFCSlab: 'IfcSlab',
+      IFCBuildingStorey: 'IfcBuildingStorey',
+      IFCBuilding: 'IfcBuilding',
     };
 
     const ontologyType = ifcTypeMap[entityType] || entityType;
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -125,10 +125,12 @@ export class RdfService {
    * Get entities with filtering and pagination
    */
   async getEntities(query: IFCEntityListRequest): Promise<IFCEntityResponse> {
-    this.logger.log(`Retrieving IFC entities with filters: ${JSON.stringify(query)}`);
-    
+    this.logger.log(
+      `Retrieving IFC entities with filters: ${JSON.stringify(query)}`,
+    );
+
     const { entity_type, name_filter, limit = 100, skip = 0 } = query;
-    
+
     let sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -146,10 +148,10 @@ export class RdfService {
     // Add entity type filter
     if (entity_type) {
       const ifcTypeMap: Record<string, string> = {
-        'IFCSpace': 'IfcSpace',
-        'IFCWall': 'IfcWall', 
-        'IFCDoor': 'IfcDoor',
-        'IFCWindow': 'IfcWindow'
+        IFCSpace: 'IfcSpace',
+        IFCWall: 'IfcWall',
+        IFCDoor: 'IfcDoor',
+        IFCWindow: 'IfcWindow',
       };
       const ontologyType = ifcTypeMap[entity_type] || entity_type;
       sparqlQuery += `FILTER (?entityType = ifc:${ontologyType})`;
@@ -168,7 +170,10 @@ export class RdfService {
     `;
 
     const result = await this.executeSparqlQuery(sparqlQuery);
-    const entities = this.transformSparqlResultToIFCEntities(result, entity_type || 'Mixed');
+    const entities = this.transformSparqlResultToIFCEntities(
+      result,
+      entity_type || 'Mixed',
+    );
 
     // Get total count (simplified)
     const totalCount = entities.length; // In a production system, you'd run a separate COUNT query
@@ -177,7 +182,7 @@ export class RdfService {
       entity_id: 'sparql_query_result',
       filter_criteria: JSON.stringify(query),
       total_count: totalCount,
-      entities: entities
+      entities: entities,
     };
   }
 
@@ -186,7 +191,7 @@ export class RdfService {
    */
   async getEntityByGlobalId(globalId: string): Promise<IFCEntityResult | null> {
     this.logger.log(`Retrieving IFC entity with Global ID: ${globalId}`);
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -211,7 +216,7 @@ export class RdfService {
    */
   async searchEntities(searchTerm: string): Promise<IFCEntityResult[]> {
     this.logger.log(`Searching IFC entities with term: ${searchTerm}`);
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -243,7 +248,7 @@ export class RdfService {
    */
   async getEntityCountByType(): Promise<Record<string, number>> {
     this.logger.log('Getting entity count by type');
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -259,36 +264,39 @@ export class RdfService {
 
     const result = await this.executeSparqlQuery(sparqlQuery);
     const countByType: Record<string, number> = {};
-    
-    result.results.bindings.forEach(binding => {
+
+    result.results.bindings.forEach((binding) => {
       const typeUri = binding.entityType?.value || '';
       const typeName = typeUri.split('#').pop() || typeUri;
       const count = parseInt(binding.count?.value || '0', 10);
       countByType[typeName] = count;
     });
-    
+
     return countByType;
   }
 
   /**
    * Transform SPARQL results to IFC entity format
    */
-  private transformSparqlResultToIFCEntities(result: SPARQLResult, defaultEntityType: string): IFCEntityResult[] {
-    return result.results.bindings.map(binding => {
+  private transformSparqlResultToIFCEntities(
+    result: SPARQLResult,
+    defaultEntityType: string,
+  ): IFCEntityResult[] {
+    return result.results.bindings.map((binding) => {
       const entityUri = binding.entity?.value || binding.space?.value || '';
-      const entityType = binding.entityType?.value ? 
-        binding.entityType.value.split('#').pop() || defaultEntityType : 
-        defaultEntityType;
-      
+      const entityType = binding.entityType?.value
+        ? binding.entityType.value.split('#').pop() || defaultEntityType
+        : defaultEntityType;
+
       const properties: Record<string, any> = {
         uri: entityUri,
         description: binding.description?.value,
         longName: binding.longName?.value,
-        compositionType: binding.compositionType?.value
+        compositionType: binding.compositionType?.value,
       };
 
       // Remove undefined properties
-      Object.keys(properties).forEach(key => {
+      Object.keys(properties).forEach((key) => {
         if (properties[key] === undefined) {
           delete properties[key];
         }
@@ -299,14 +307,18 @@ export class RdfService {
         name: binding.name?.value || 'Unnamed',
         properties: properties,
         global_id: binding.globalId?.value,
-        created_at: new Date() // RDF doesn't have creation timestamps by default
+        created_at: new Date(), // RDF doesn't have creation timestamps by default
       };
     });
   }
 
   // Legacy methods for compatibility (these would need to be implemented differently for RDF)
-  async createEntity(createEntityDto: Partial<IFCEntity>): Promise<IFCEntityResult> {
-    throw new Error('Create operations not supported for read-only RDF repository');
+  async createEntity(
+    createEntityDto: Partial<IFCEntity>,
+  ): Promise<IFCEntityResult> {
+    throw new Error(
+      'Create operations not supported for read-only RDF repository',
+    );
   }
 
   async getEntityById(entityId: string): Promise<IFCEntityResult | null> {
@@ -314,21 +326,35 @@ export class RdfService {
     return this.getEntityByGlobalId(entityId);
   }
 
-  async updateEntity(entityId: string, updateEntityDto: Partial<IFCEntity>): Promise<IFCEntityResult | null> {
-    throw new Error('Update operations not supported for read-only RDF repository');
+  async updateEntity(
+    entityId: string,
+    updateEntityDto: Partial<IFCEntity>,
+  ): Promise<IFCEntityResult | null> {
+    throw new Error(
+      'Update operations not supported for read-only RDF repository',
+    );
   }
 
   async deleteEntity(entityId: string): Promise<boolean> {
-    throw new Error('Delete operations not supported for read-only RDF repository');
+    throw new Error(
+      'Delete operations not supported for read-only RDF repository',
+    );
   }
 
-  async createBulkEntities(entities: Partial<IFCEntity>[]): Promise<IFCEntityResult[]> {
-    throw new Error('Bulk create operations not supported for read-only RDF repository');
+  async createBulkEntities(
+    entities: Partial<IFCEntity>[],
+  ): Promise<IFCEntityResult[]> {
+    throw new Error(
+      'Bulk create operations not supported for read-only RDF repository',
+    );
   }
 
-  async getEntitiesWithProperty(propertyKey: string, propertyValue?: any): Promise<IFCEntityResult[]> {
+  async getEntitiesWithProperty(
+    propertyKey: string,
+    propertyValue?: any,
+  ): Promise<IFCEntityResult[]> {
     this.logger.log(`Getting entities with property: ${propertyKey}`);
-    
+
     const sparqlQuery = `
       PREFIX ifc: <http://www.buildingsmart-tech.org/ifcOWL/IFC4_ADD2#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

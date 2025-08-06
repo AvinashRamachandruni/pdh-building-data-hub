@@ -8,12 +8,12 @@ import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: IFCEntity.name, schema: IFCEntitySchema }
+      { name: IFCEntity.name, schema: IFCEntitySchema },
     ]),
-    ConfigModule
+    ConfigModule,
   ],
   controllers: [RdfController],
   providers: [RdfService],
-  exports: [RdfService]
+  exports: [RdfService],
 })
 export class RdfModule {}
