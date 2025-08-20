@@ -1,21 +1,17 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { SensorsService } from './sensors.service';
 import {
-  ApiBearerAuth,
   ApiDefaultResponse,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { config } from 'dotenv';
-import { SensorData, SensorDataResponse } from './entities/sensor.entity';
+import { SensorDataResponse } from './entities/sensor.entity';
 import { DateValidationPipe } from 'src/pipes/DateValidationPipe';
-config();
 
-@ApiBearerAuth()
-@Controller('sensors') // path prefix (sensors/)
-@ApiTags('Sensor data') // display topic
+@ApiTags('Sensor data')
+@Controller('sensors')
 export class SensorsController {
   constructor(private readonly sensorsService: SensorsService) {}
 
@@ -35,12 +31,14 @@ export class SensorsController {
     name: 'start',
     required: false,
     example: new Date(Date.now() - 86400000).toISOString(),
+    description: 'Start datetime in ISO format',
     type: Date,
   })
   @ApiQuery({
     name: 'end',
     required: false,
     example: new Date().toISOString(),
+    description: 'End datetime in ISO format',
     type: Date,
   })
   @ApiQuery({

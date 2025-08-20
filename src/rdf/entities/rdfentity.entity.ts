@@ -1,64 +1,40 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
 
-export type IFCEntityDocument = HydratedDocument<IFCEntity>;
-
-@Schema({
-  collection: 'ifc_entities',
-  toJSON: {
-    transform: (
-      doc: IFCEntityDocument,
-      ret: Partial<IFCEntityDocument>,
-      options: any,
-    ) => {
-      delete ret._id;
-      delete ret.entity_id;
-    },
-  },
-})
-export class IFCEntity {
-  @Prop({ required: true })
+export class RDFEntity {
   @ApiProperty()
   entity_id: string;
 
-  @Prop({ required: true })
   @ApiProperty({
     description: 'Type of IFC entity (e.g., IFCSpace, IFCWall, IFCDoor, etc.)',
   })
   entity_type: string;
 
-  @Prop({ required: true })
   @ApiProperty({
     description: 'Name or label of the IFC entity',
   })
   name: string;
 
-  @Prop({ type: Object })
   @ApiProperty({
     description: 'Properties specific to the IFC entity type',
   })
   properties: Record<string, any>;
 
-  @Prop()
   @ApiProperty({
     description: 'Global Unique Identifier from IFC file',
     required: false,
   })
   global_id?: string;
 
-  @Prop({ required: true })
   @ApiProperty()
   created_at: Date;
 
-  @Prop()
   @ApiProperty({
     required: false,
   })
   updated_at?: Date;
 }
 
-export class IFCEntityResult {
+export class RDFEntityResult {
   @ApiProperty()
   entity_type: string;
 
@@ -66,7 +42,7 @@ export class IFCEntityResult {
   name: string;
 
   @ApiProperty({
-    description: 'Properties of the IFC entity',
+    description: 'Properties of the RDF entity',
   })
   properties: Record<string, any>;
 
@@ -77,7 +53,7 @@ export class IFCEntityResult {
   created_at: Date;
 }
 
-export class IFCEntityResponse {
+export class RDFEntityResponse {
   @ApiProperty()
   entity_id: string;
 
@@ -90,13 +66,13 @@ export class IFCEntityResponse {
   total_count: number;
 
   @ApiProperty({
-    type: [IFCEntityResult],
+    type: [RDFEntityResult],
     description: 'List of IFC entities matching the criteria',
   })
-  entities: IFCEntityResult[];
+  entities: RDFEntityResult[];
 }
 
-export class IFCEntityListRequest {
+export class RDFEntityListRequest {
   @ApiProperty({
     required: false,
     description: 'Filter by entity type (e.g., IFCSpace, IFCWall)',
@@ -123,5 +99,3 @@ export class IFCEntityListRequest {
   })
   skip?: number;
 }
-
-export const IFCEntitySchema = SchemaFactory.createForClass(IFCEntity);

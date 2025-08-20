@@ -43,10 +43,10 @@ export class SensorDataResponse {
   sensor_id: string;
 
   @ApiProperty()
-  start: Date;
+  start_date: Date;
 
   @ApiProperty()
-  end: Date;
+  end_date: Date;
 
   @ApiProperty({
     type: [SensorDataResult],
