@@ -13,6 +13,12 @@ async function bootstrap() {
     new FastifyAdapter({ logger: { level: 'error' } }),
   );
 
+  // Enable CORS for all origins
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Personalised Building Data Hub API')
     .setDescription('API for PDH')
