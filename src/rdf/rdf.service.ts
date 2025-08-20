@@ -86,6 +86,7 @@ export class RdfService {
 
     // Simple query: only required fields, no OPTIONALs
     const sparqlQuery = `
+      PREFIX express: <https://w3id.org/express#>  
       PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -94,9 +95,9 @@ export class RdfService {
       WHERE {
         ?entity rdf:type ifc:${ontologyType} .
         OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj .
-             ?nameObj ifc:hasString ?name . }
+             ?nameObj express:hasString ?name . }
         OPTIONAL { ?entity ifc:globalId_IfcRoot ?globalIdObj .
-             ?globalIdObj ifc:hasString ?globalId . }
+             ?globalIdObj express:hasString ?globalId . }
       }
       ORDER BY ?name
     `;
@@ -118,6 +119,7 @@ export class RdfService {
     const { entity_type, name_filter, limit = 500, skip = 0 } = query;
 
     let sparqlQuery = `
+      PREFIX express: <https://w3id.org/express#>
       PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
       PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -126,9 +128,9 @@ export class RdfService {
       WHERE {
         ?entity rdf:type ?entityType .
         FILTER CONTAINS(STR(?entityType), "IFC2x3")
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj ifc:hasString ?name . }
-        OPTIONAL { ?entity ifc:globalId_IfcRoot ?globalIdObj . ?globalIdObj ifc:hasString ?globalId . }
-        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj ifc:hasString ?description . }
+        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?name . }
+        OPTIONAL { ?entity ifc:globalId_IfcRoot ?globalIdObj . ?globalIdObj express:hasString ?globalId . }
+        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj express:hasString ?description . }
     `;
 
     // Add entity type filter
@@ -180,6 +182,7 @@ export class RdfService {
     this.logger.log(`Retrieving RDF entity with Global ID: ${globalId}`);
 
     const sparqlQuery = `
+      PREFIX express: <https://w3id.org/express#>  
       PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
       
@@ -187,9 +190,9 @@ export class RdfService {
       WHERE {
         ?entity rdf:type ?entityType .
         ?entity ifc:globalId_IfcRoot ?globalIdObj .
-        ?globalIdObj ifc:hasString "${globalId}" .
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj ifc:hasString ?name . }
-        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj ifc:hasString ?description . }
+        ?globalIdObj express:hasString "${globalId}" .
+        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj expresss:hasString ?name . }
+        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj express:hasString ?description . }
       }
     `;
 

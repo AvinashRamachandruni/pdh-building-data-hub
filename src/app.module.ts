@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SensorsModule } from './sensors/sensors.module';
 import { RdfModule } from './rdf/rdf.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { TransactionsModule } from './dbl/transactions.module';
 
 @Module({
   imports: [
@@ -18,8 +20,20 @@ import { RdfModule } from './rdf/rdf.module';
       }),
       inject: [ConfigService],
     }),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'postgres',
+        url: config.get<string>('SQL_DB_URL'),
+        database: config.get<string>('SQL_DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: false, // set true only for dev
+      }),
+    }),
     SensorsModule,
     RdfModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
