@@ -7,6 +7,7 @@ import { SensorsModule } from './sensors/sensors.module';
 import { RdfModule } from './rdf/rdf.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionsModule } from './dbl/transactions.module';
+import { ToolsModule } from './tools/tools.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TransactionsModule } from './dbl/transactions.module';
     SensorsModule,
     RdfModule,
     TransactionsModule,
+    ToolsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
