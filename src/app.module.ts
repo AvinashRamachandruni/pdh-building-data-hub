@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SensorsModule } from './sensors/sensors.module';
 import { RdfModule } from './rdf/rdf.module';
+import { AssetsModule } from './assets/assets.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionsModule } from './dbl/transactions.module';
 import { ToolsModule } from './tools/tools.module';
@@ -34,6 +35,7 @@ import { ToolsModule } from './tools/tools.module';
     }),
     SensorsModule,
     RdfModule,
+    AssetsModule,
     TransactionsModule,
     ToolsModule,
   ],

@@ -15,6 +15,17 @@ import { DateValidationPipe } from 'src/pipes/DateValidationPipe';
 export class SensorsController {
   constructor(private readonly sensorsService: SensorsService) {}
 
+  @Get()
+  @ApiOperation({
+    summary: 'Get all sensor IDs',
+  })
+  @ApiDefaultResponse({
+    type: [String],
+  })
+  async getAllSensorIds() {
+    return await this.sensorsService.getAllSensorIds();
+  }
+
   @Get(':sensor_id/records')
   @ApiOperation({
     summary: 'Get sensor data by sensor id and time period',

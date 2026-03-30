@@ -43,31 +43,7 @@ export class SensorsService {
     return this.sensorDataModel.aggregate(pipeline);
   }
 
-  // async getRecords(
-  //   sensor_id: string,
-  //   page = 0, // page index, 0-based
-  //   pageSize = 100, // number of records per page
-  //   start?: Date,
-  //   end?: Date,
-  // ) {
-  //   const match: any = { sensor_id };
-
-  //   if (start && end) {
-  //     match.timestamp = { $gte: start, $lte: end };
-  //   } else if (start) {
-  //     match.timestamp = { $gte: start };
-  //   } else if (end) {
-  //     match.timestamp = { $lte: end };
-  //   }
-
-  //   const pipeline: any[] = [
-  //     { $match: match },
-  //     { $sort: { timestamp: -1 } }, // or 1 for oldest-first
-  //     { $skip: page * pageSize },
-  //     { $limit: pageSize },
-  //     { $project: { _id: 0, sensor_id: 0 } },
-  //   ];
-
-  //   return this.sensorDataModel.aggregate(pipeline);
-  // }
+  async getAllSensorIds() {
+    return this.sensorDataModel.distinct('sensor_id');
+  }
 }
