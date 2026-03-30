@@ -10,7 +10,7 @@ $ MONGO_DB=bimsim
 $ PORT=8090
 $ RDF_SERVER=http://localhost:7201/repositories/wilson-bimsim/statements
 ```
-
+*** A pull request is required to merge into main. Hence always, create a branch for your work. 
 ##
 
 <p align="center">
