@@ -17,21 +17,32 @@ import { ToolsModule } from './tools/tools.module';
       isGlobal: true, // Make the configuration globally available
     }),
     MongooseModule.forRootAsync({
+      inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         const rawUri = configService.get<string>('MONGO_SERVER') || '';
         const dbName = configService.get<string>('MONGO_DB') || '';
 
-        // Extract and encode password safely
-        const encodedUri = rawUri.replace(
-          /:(.*?)@/,
-          (_, password) => `:${encodeURIComponent(password)}@`,
-        );
+        if (!rawUri) {
+          throw new Error('MONGO_SERVER is not defined');
+        }
+
+        if (!dbName) {
+          throw new Error('MONGO_DB is not defined');
+        }
+
+        const url = new URL(rawUri);
+
+        // Force proper encoding of username/password
+        url.username = decodeURIComponent(url.username);
+        url.password = decodeURIComponent(url.password);
+
+        // Set the database name safely
+        url.pathname = `/${dbName}`;
 
         return {
-          uri: `${encodedUri}/${dbName}`,
+          uri: url.toString(),
         };
       },
-      inject: [ConfigService],
     }),
     // TypeOrmModule.forRootAsync({
     //   imports: [ConfigModule],
