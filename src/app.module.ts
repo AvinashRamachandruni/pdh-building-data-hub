@@ -17,9 +17,20 @@ import { ToolsModule } from './tools/tools.module';
       isGlobal: true, // Make the configuration globally available
     }),
     MongooseModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        uri: `${configService.get<string>('MONGO_SERVER')}/${configService.get<string>('MONGO_DB')}`,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const rawUri = configService.get<string>('MONGO_SERVER') || '';
+        const dbName = configService.get<string>('MONGO_DB') || '';
+
+        // Extract and encode password safely
+        const encodedUri = rawUri.replace(
+          /:(.*?)@/,
+          (_, password) => `:${encodeURIComponent(password)}@`,
+        );
+
+        return {
+          uri: `${encodedUri}/${dbName}`,
+        };
+      },
       inject: [ConfigService],
     }),
     // TypeOrmModule.forRootAsync({
@@ -35,9 +46,9 @@ import { ToolsModule } from './tools/tools.module';
     // }),
     SensorsModule,
     RdfModule,
-    //ToolsModule,
+    ToolsModule,
     AssetsModule,
-    TransactionsModule,
+    //TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
