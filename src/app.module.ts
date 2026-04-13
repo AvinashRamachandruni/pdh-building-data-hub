@@ -22,22 +22,22 @@ import { ToolsModule } from './tools/tools.module';
       }),
       inject: [ConfigService],
     }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        type: 'postgres',
-        url: config.get<string>('SQL_DB_URL'),
-        database: config.get<string>('SQL_DB_NAME'),
-        autoLoadEntities: true,
-        synchronize: false, // set true only for dev
-      }),
-    }),
+    // TypeOrmModule.forRootAsync({
+    //   imports: [ConfigModule],
+    //   inject: [ConfigService],
+    //   useFactory: (config: ConfigService) => ({
+    //     type: 'postgres',
+    //     url: config.get<string>('SQL_DB_URL'),
+    //     database: config.get<string>('SQL_DB_NAME'),
+    //     autoLoadEntities: true,
+    //     synchronize: false, // set true only for dev
+    //   }),
+    // }),
     SensorsModule,
     RdfModule,
+    //ToolsModule,
     AssetsModule,
     TransactionsModule,
-    ToolsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
