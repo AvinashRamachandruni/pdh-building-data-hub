@@ -18,7 +18,7 @@ import { ToolsModule } from './tools/tools.module';
     }),
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
-        uri: `${configService.get<string>('MONGO_SERVER')}/${configService.get<string>('MONGO_DB')}`,
+        uri: configService.get<string>('MONGO_SERVER'),
       }),
       inject: [ConfigService],
     }),
