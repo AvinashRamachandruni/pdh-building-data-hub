@@ -17,9 +17,11 @@ import { ToolsModule } from './tools/tools.module';
       isGlobal: true, // Make the configuration globally available
     }),
     MongooseModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        uri: `${configService.get<string>('MONGO_SERVER')}/${configService.get<string>('MONGO_DB')}?retryWrites=true&w=majority&appName=wilson-mongo`,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const uri = `${configService.get<string>('MONGO_SERVER')}/${configService.get<string>('MONGO_DB')}?retryWrites=true&w=majority&appName=wilson-mongo`;
+        console.log('MongoDB URI:', uri);
+        return { uri };
+      },
       inject: [ConfigService],
     }),
     // TypeOrmModule.forRootAsync({
