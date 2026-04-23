@@ -12,7 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       imports: [ConfigModule],
       connectionName: 'WILSONTOOLS', // important to name it
       useFactory: async (configService: ConfigService) => ({
-        uri: `mongodb://${configService.get<string>('MONGO_SERVER_FOR_TOOLS')}/${configService.get<string>('MONGO_DB_FOR_TOOLS')}`,
+        uri: `${configService.get<string>('MONGO_SERVER_FOR_TOOLS')}/${configService.get<string>('MONGO_DB_FOR_TOOLS')}`,
       }),
       inject: [ConfigService],
     }),

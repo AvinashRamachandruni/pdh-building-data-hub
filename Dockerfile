@@ -29,7 +29,7 @@ RUN npm install --production --frozen-lockfile
 COPY --from=builder /app/dist ./dist
 
 # Expose port (your NestJS default is usually 3000)
-EXPOSE 3000
+EXPOSE 8090
 
 # Start the app
 CMD ["node", "dist/main.js"]
