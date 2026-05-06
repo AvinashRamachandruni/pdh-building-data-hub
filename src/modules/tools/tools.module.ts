@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ToolsService } from './tools.service';
 import { ToolsController } from './tools.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { buildMongoUri } from '../config/mongo-uri.util';
+import { buildMongoUri } from '../../config/mongo-uri.util';
 
 @Module({
   imports: [
