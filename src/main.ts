@@ -43,8 +43,8 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('Unified Asset Interfaces')
-    .setDescription('API for UAMS')
+    .setTitle('Personalised Building Data Hub API')
+    .setDescription('API for PDH')
     .setVersion('1.0')
     .addBearerAuth()
     .addOAuth2()

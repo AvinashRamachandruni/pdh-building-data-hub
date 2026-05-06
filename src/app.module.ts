@@ -3,12 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SensorsModule } from './sensors/sensors.module';
-import { RdfModule } from './rdf/rdf.module';
-import { AssetsModule } from './assets/assets.module';
+import { SensorsModule } from './modules/sensors/sensors.module';
+import { RdfModule } from './modules/rdf/rdf.module';
+import { AssetsModule } from './modules/assets/assets.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TransactionsModule } from './dbl/transactions.module';
-import { ToolsModule } from './tools/tools.module';
+import { TransactionsModule } from './modules/dbl/transactions.module';
+import { ToolsModule } from './modules/tools/tools.module';
 import { buildMongoUri } from './config/mongo-uri.util';
 
 @Module({
