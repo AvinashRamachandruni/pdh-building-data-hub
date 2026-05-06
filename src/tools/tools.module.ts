@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ToolsService } from './tools.service';
 import { ToolsController } from './tools.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { buildMongoUri } from '../config/mongo-uri.util';
 
 @Module({
   imports: [
@@ -12,7 +13,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       imports: [ConfigModule],
       connectionName: 'WILSONTOOLS', // important to name it
       useFactory: async (configService: ConfigService) => ({
-        uri: `${configService.get<string>('MONGO_SERVER_FOR_TOOLS')}/${configService.get<string>('MONGO_DB_FOR_TOOLS')}`,
+        uri: buildMongoUri(
+          configService.get<string>('MONGO_SERVER_FOR_TOOLS'),
+          configService.get<string>('MONGO_DB_FOR_TOOLS'),
+          'pdh-tools',
+        ),
       }),
       inject: [ConfigService],
     }),

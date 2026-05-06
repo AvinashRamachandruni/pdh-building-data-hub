@@ -9,15 +9,20 @@ import { AssetsModule } from './assets/assets.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionsModule } from './dbl/transactions.module';
 import { ToolsModule } from './tools/tools.module';
+import { buildMongoUri } from './config/mongo-uri.util';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
     }),
     MongooseModule.forRootAsync({
       useFactory: (configService: ConfigService) => {
-        const uri = `${configService.get<string>('MONGO_SERVER')}/${configService.get<string>('MONGO_DB')}?retryWrites=true&w=majority&appName=wilson-mongo`;
+        const uri = `${buildMongoUri(
+          configService.get<string>('MONGO_SERVER'),
+          configService.get<string>('MONGO_DB'),
+          'bimsim',
+        )}?retryWrites=true&w=majority&appName=wilson-mongo`;
         console.log('MongoDB URI:', uri);
         return { uri };
       },
@@ -27,17 +32,17 @@ import { ToolsModule } from './tools/tools.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-      type: 'postgres',
-      url: config.get<string>('SQL_DB_URL'),
-      database: config.get<string>('SQL_DB_NAME'),
-      autoLoadEntities: true,
-      synchronize: false, // set true only for dev
+        type: 'postgres',
+        url: config.get<string>('SQL_DB_URL'),
+        database: config.get<string>('SQL_DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: false, // set true only for dev
       }),
     }),
     SensorsModule,
     RdfModule,
-    ToolsModule,
     AssetsModule,
+    ToolsModule,
     TransactionsModule,
   ],
   controllers: [AppController],

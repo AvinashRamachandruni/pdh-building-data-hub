@@ -23,6 +23,8 @@ import {
   RDFEntityResponse,
   RDFEntityResult,
   RDFEntityListRequest,
+  SensorSpaceMappingResponse,
+  SpaceSensorMappingResponse,
 } from './entities/rdfentity.entity';
 
 @ApiTags('RDF Data')
@@ -60,6 +62,74 @@ export class RdfController {
     } catch (error) {
       throw new HttpException(
         `Failed to retrieve entities: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('mappings/sensor/:sensorId/space')
+  @ApiOperation({ summary: 'Get RDF space mapping for a sensor' })
+  @ApiParam({
+    name: 'sensorId',
+    description: 'Sensor ID used in the RDF mapping graph',
+    example: '11NR00STE-001TRL',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sensor-space mapping retrieved successfully',
+    type: SensorSpaceMappingResponse,
+  })
+  @ApiResponse({ status: 404, description: 'Sensor-space mapping not found' })
+  async getSensorSpaceMapping(
+    @Param('sensorId') sensorId: string,
+  ): Promise<SensorSpaceMappingResponse> {
+    try {
+      const mapping = await this.rdfService.getSensorSpaceMapping(sensorId);
+      if (!mapping) {
+        throw new HttpException(
+          'Sensor-space mapping not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return mapping;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to retrieve sensor-space mapping: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('mappings/space/sensors')
+  @ApiOperation({ summary: 'Get RDF sensor mappings for a space' })
+  @ApiQuery({
+    name: 'spaceId',
+    required: true,
+    description: 'Space URI or identifier used in the RDF mapping graph',
+    example: 'http://example.com/building#Space-001',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Space-sensor mappings retrieved successfully',
+    type: [SpaceSensorMappingResponse],
+  })
+  async getSpaceSensorsMappings(
+    @Query('spaceId') spaceId: string,
+  ): Promise<SpaceSensorMappingResponse[]> {
+    try {
+      if (!spaceId) {
+        throw new HttpException('spaceId is required', HttpStatus.BAD_REQUEST);
+      }
+      return await this.rdfService.getSpaceSensorsMappings(spaceId);
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to retrieve space-sensor mappings: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

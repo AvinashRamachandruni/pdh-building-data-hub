@@ -21,6 +21,7 @@ interface SPARQLResult {
 export class RdfService {
   private readonly logger = new Logger(RdfService.name);
   private readonly rdfServerUrl: string;
+  private readonly mappingGraphUri: string;
 
   constructor(private configService: ConfigService) {
     const rdfServerUrl = this.configService.get<string>('RDF_SERVER');
@@ -28,7 +29,11 @@ export class RdfService {
       throw new Error('RDF_SERVER environment variable is not configured');
     }
     this.rdfServerUrl = rdfServerUrl;
+    this.mappingGraphUri =
+      this.configService.get<string>('GRAPHDB_MAPPING_GRAPH') ||
+      'http://ams.validation/graph/mapping-layer';
     this.logger.log(`RDF Server URL: ${this.rdfServerUrl}`);
+    this.logger.log(`RDF mapping graph: ${this.mappingGraphUri}`);
   }
 
   /**
@@ -191,7 +196,7 @@ export class RdfService {
         ?entity rdf:type ?entityType .
         ?entity ifc:globalId_IfcRoot ?globalIdObj .
         ?globalIdObj express:hasString "${globalId}" .
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj expresss:hasString ?name . }
+        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?name . }
         OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj express:hasString ?description . }
       }
     `;
@@ -249,5 +254,99 @@ export class RdfService {
     throw new Error(
       'Update operations not supported for read-only RDF repository',
     );
+  }
+
+  /**
+   * Query sensor-space mapping from the mapping graph
+   * Returns space information for a given sensor ID
+   */
+  async getSensorSpaceMapping(
+    sensorId: string,
+  ): Promise<{ spaceId: string; spaceName: string } | null> {
+    this.logger.log(`Querying space mapping for sensor: ${sensorId}`);
+
+    const sparqlQuery = `
+      PREFIX : <http://ams.validation/ontology#>
+      PREFIX asset: <http://example.org/asset#>
+      PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
+      PREFIX express: <https://w3id.org/express#>
+      
+      SELECT ?sensor ?spaceId ?resolvedSpaceName
+      WHERE {
+        GRAPH <${this.mappingGraphUri}> {
+          VALUES ?sensorIdPredicate { asset:sensorId :sensorId }
+          VALUES ?locatedInPredicate { asset:locatedIn :locatedIn }
+          ?sensor ?sensorIdPredicate "${sensorId}" .
+          ?sensor ?locatedInPredicate ?space .
+        }
+        BIND(STR(?space) AS ?spaceId)
+        OPTIONAL { ?space ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?spaceName . }
+        OPTIONAL {
+          GRAPH <${this.mappingGraphUri}> {
+            ?space asset:name ?mappedSpaceName .
+          }
+        }
+        BIND(COALESCE(?spaceName, ?mappedSpaceName) AS ?resolvedSpaceName)
+      }
+      LIMIT 1
+    `;
+
+    try {
+      const result = await this.executeSparqlQuery(sparqlQuery);
+      if (result.results.bindings.length > 0) {
+        const binding = result.results.bindings[0];
+        return {
+          spaceId: binding.spaceId?.value || '',
+          spaceName:
+            binding.resolvedSpaceName?.value || binding.spaceId?.value || '',
+        };
+      }
+      return null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get space mapping for sensor ${sensorId}:`,
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Query all sensors in a space from the mapping graph
+   */
+  async getSpaceSensorsMappings(
+    spaceId: string,
+  ): Promise<Array<{ sensorId: string; sensorName: string }>> {
+    this.logger.log(`Querying sensors in space: ${spaceId}`);
+
+    const sparqlQuery = `
+      PREFIX : <http://ams.validation/ontology#>
+      PREFIX asset: <http://example.org/asset#>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      
+      SELECT ?sensor ?sensorId ?sensorName
+      WHERE {
+        GRAPH <${this.mappingGraphUri}> {
+          VALUES ?sensorIdPredicate { asset:sensorId :sensorId }
+          VALUES ?locatedInPredicate { asset:locatedIn :locatedIn }
+          ?sensor ?locatedInPredicate <${spaceId}> .
+          ?sensor ?sensorIdPredicate ?sensorId .
+          OPTIONAL { ?sensor rdf:label ?rdfLabel . }
+          OPTIONAL { ?sensor asset:name ?assetName . }
+        }
+        BIND(COALESCE(?rdfLabel, ?assetName, ?sensorId) AS ?sensorName)
+      }
+    `;
+
+    try {
+      const result = await this.executeSparqlQuery(sparqlQuery);
+      return result.results.bindings.map((binding) => ({
+        sensorId: binding.sensorId?.value || '',
+        sensorName: binding.sensorName?.value || binding.sensorId?.value || '',
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get sensors for space ${spaceId}:`, error);
+      return [];
+    }
   }
 }

@@ -15,5 +15,6 @@ import { SensorData, SensorDataSchema } from './entities/sensor.entity';
   ],
   controllers: [SensorsController],
   providers: [SensorsService],
+  exports: [SensorsService],
 })
 export class SensorsModule {}

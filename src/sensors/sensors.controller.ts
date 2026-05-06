@@ -7,7 +7,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { SensorDataResponse } from './entities/sensor.entity';
+import { SensorDataResponse, SensorDataResult } from './entities/sensor.entity';
 import { DateValidationPipe } from 'src/pipes/DateValidationPipe';
 
 @ApiTags('Sensor data')
@@ -24,6 +24,25 @@ export class SensorsController {
   })
   async getAllSensorIds() {
     return await this.sensorsService.getAllSensorIds();
+  }
+
+  @Get(':sensor_id/latest')
+  @ApiOperation({
+    summary: 'Get the latest sensor data record by sensor id',
+  })
+  @ApiDefaultResponse({
+    type: SensorDataResult,
+  })
+  @ApiParam({
+    name: 'sensor_id',
+    example: 'ROOM-004-CO2',
+    description: 'BMS sensor id',
+  })
+  async getLatestRecord(@Param('sensor_id') sensor_id: string) {
+    return {
+      sensor_id,
+      result: await this.sensorsService.getLatestRecord(sensor_id),
+    };
   }
 
   @Get(':sensor_id/records')

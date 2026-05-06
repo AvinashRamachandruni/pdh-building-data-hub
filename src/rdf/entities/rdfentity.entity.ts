@@ -99,3 +99,27 @@ export class RDFEntityListRequest {
   })
   skip?: number;
 }
+
+export class SensorSpaceMappingResponse {
+  @ApiProperty({
+    description: 'Space URI or identifier mapped to the sensor',
+  })
+  spaceId: string;
+
+  @ApiProperty({
+    description: 'Space display name when available',
+  })
+  spaceName: string;
+}
+
+export class SpaceSensorMappingResponse {
+  @ApiProperty({
+    description: 'Sensor identifier mapped to the space',
+  })
+  sensorId: string;
+
+  @ApiProperty({
+    description: 'Sensor display name when available',
+  })
+  sensorName: string;
+}

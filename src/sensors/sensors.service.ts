@@ -43,6 +43,19 @@ export class SensorsService {
     return this.sensorDataModel.aggregate(pipeline);
   }
 
+  async getLatestRecord(sensor_id: string) {
+    const records = await this.sensorDataModel
+      .aggregate([
+        { $match: { sensor_id } },
+        { $sort: { timestamp: -1 } },
+        { $limit: 1 },
+        { $project: { _id: 0, sensor_id: 0 } },
+      ])
+      .exec();
+
+    return records[0] || null;
+  }
+
   async getAllSensorIds() {
     return this.sensorDataModel.distinct('sensor_id');
   }
