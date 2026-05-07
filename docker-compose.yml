@@ -6,10 +6,23 @@ services:
     env_file:
       - .env
     depends_on:
+      graphdb:
+        condition: service_started
       postgres:
-        condition: service_healthy
+        condition: service_started
       mongo:
-        condition: service_healthy
+        condition: service_started
+    networks:
+      - app-network
+
+  graphdb:
+    image: ontotext/graphdb:10.7.3
+    ports:
+      - "7200:7200"
+    environment:
+      - GDB_HEAP_SIZE=2g
+    volumes:
+      - graphdbdata:/opt/graphdb/home
     networks:
       - app-network
 
@@ -63,6 +76,7 @@ services:
 volumes:
   postgres_data:
   mongo_data:
+  graphdbdata:
 
 networks:
   app-network:
