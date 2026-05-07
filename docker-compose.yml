@@ -7,11 +7,11 @@ services:
       - .env
     depends_on:
       graphdb:
-        condition: service_started
+        condition: service_healthy
       postgres:
-        condition: service_started
+        condition: service_healthy
       mongo:
-        condition: service_started
+        condition: service_healthy
     networks:
       - app-network
 
@@ -25,6 +25,12 @@ services:
       - graphdbdata:/opt/graphdb/home
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:7200/rest/repositories || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
 
   postgres:
     image: postgres:15
@@ -61,6 +67,13 @@ services:
   web:
     build: .
     command: npm start
+    depends_on:
+      graphdb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
     develop:
       watch:
         - action: sync
