@@ -5,14 +5,14 @@ This NestJS application can simply be deployed locally using the standard node d
 For this application, there is a server configuration required to access the data sources. At this moment, it is done using the .env file in the project main directory. create a file manually and configure the following properties in the created file. Please note that key must not be modified.
 
 ```bash
-$ MONGO_SERVER=mongodb://localhost:27017
+$ MONGO_SERVER=mongodb://mongo:27017
 $ MONGO_DB=bimsim
 $ PORT=8090
-$ RDF_SERVER=http://localhost:7201/repositories/wilson-bimsim/statements
+$ RDF_SERVER=http://graphdb:7200/repositories/wilson-bimsim
 $ SQL_DB_NAME=pdh
-$ SQL_DB_URL=postgres://postgres:password@localhost:5432/pdh
+$ SQL_DB_URL=postgres://postgres:password@postgres:5432/pdh
 $ MONGO_DB_FOR_TOOLS=pdh-tools
-$ MONGO_SERVER_FOR_TOOLS=localhost:27017
+$ MONGO_SERVER_FOR_TOOLS=mongodb://mongo:27017
 $ GRAPHDB_MAPPING_GRAPH=http://ams.validation/graph/mapping-layer
 ```
 
