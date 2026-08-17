@@ -30,6 +30,7 @@
     "@nestjs/swagger": "^11.2.0",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.11.0",
+    "jose": "^5.10.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -78,5 +79,19 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AvinashRamachandruni/pdh-building-data-hub.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/AvinashRamachandruni/pdh-building-data-hub/issues"
+  },
+  "homepage": "https://github.com/AvinashRamachandruni/pdh-building-data-hub#readme"
 }

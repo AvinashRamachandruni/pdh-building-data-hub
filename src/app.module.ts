@@ -10,6 +10,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionsModule } from './modules/dbl/transactions.module';
 import { ToolsModule } from './modules/tools/tools.module';
 import { buildMongoUri } from './config/mongo-uri.util';
+import { APP_GUARD } from '@nestjs/core';
+import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
 
 @Module({
   imports: [
@@ -46,6 +48,9 @@ import { buildMongoUri } from './config/mongo-uri.util';
     TransactionsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, {
+    provide: APP_GUARD,
+    useClass: KeycloakAuthGuard,
+  },],
 })
 export class AppModule {}
