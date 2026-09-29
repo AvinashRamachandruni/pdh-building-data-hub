@@ -45,7 +45,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Personalised Building Data Hub API')
     .setDescription('API for PDH')
-    .setVersion('1.0')
+    .setVersion('3.0.0')
     .addBearerAuth()
     .addOAuth2()
     .addServer('/')

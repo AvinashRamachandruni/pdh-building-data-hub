@@ -14,5 +14,18 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {});
+  describe('health', () => {
+    it('returns the health status', () => {
+      expect(appController.health()).toEqual({ status: 'ok' });
+    });
+
+    it('is excluded from Swagger documentation', () => {
+      expect(
+        Reflect.getMetadata(
+          'swagger/apiExcludeEndpoint',
+          AppController.prototype.health,
+        ),
+      ).toEqual({ disable: true });
+    });
+  });
 });
