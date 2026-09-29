@@ -9,6 +9,7 @@ describe('FilesController', () => {
   const filesService = {
     list: jest.fn(),
     getMetadata: jest.fn(),
+    updateMetadata: jest.fn(),
     getContentStream: jest.fn(),
   };
 
@@ -36,6 +37,22 @@ describe('FilesController', () => {
     });
     const result = await controller.getMetadata('a.pdf');
     expect(result.filename).toBe('a.pdf');
+  });
+
+  it('updates metadata for a file', async () => {
+    filesService.updateMetadata.mockResolvedValue({
+      id: 'a.pdf',
+      sensorIds: ['sensor-1'],
+    });
+
+    const result = await controller.updateMetadata('a.pdf', {
+      sensorIds: ['sensor-1'],
+    });
+
+    expect(filesService.updateMetadata).toHaveBeenCalledWith('a.pdf', {
+      sensorIds: ['sensor-1'],
+    });
+    expect(result.sensorIds).toEqual(['sensor-1']);
   });
 
   it('streams file content with correct headers', async () => {

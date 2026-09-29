@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { SensorData, SensorDataDocument } from './entities/sensor.entity';
+import {
+  SensorData,
+  SensorDataDocument,
+  SensorStatus,
+} from './entities/sensor.entity';
 
 @Injectable()
 export class SensorsService {
@@ -11,6 +15,8 @@ export class SensorsService {
   constructor(
     @InjectModel(SensorData.name)
     private sensorDataModel: Model<SensorDataDocument>,
+    @InjectModel(SensorStatus.name)
+    private sensorStatusModel: Model<SensorStatus>,
     private configService: ConfigService,
   ) {
     this.logger.debug(this.configService.get<string>('MONGO_SERVER'));
@@ -58,5 +64,14 @@ export class SensorsService {
 
   async getAllSensorIds() {
     return this.sensorDataModel.distinct('sensor_id');
+  }
+
+  async setSensorStatus(sensor_id: string, active: boolean) {
+    const status = await this.sensorStatusModel.findOneAndUpdate(
+      { sensor_id },
+      { $set: { active, updated_at: new Date() } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    return { sensor_id: status.sensor_id, active: status.active };
   }
 }

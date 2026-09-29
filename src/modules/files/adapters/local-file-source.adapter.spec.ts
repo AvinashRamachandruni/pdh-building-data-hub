@@ -51,6 +51,22 @@ describe('LocalFileSourceAdapter', () => {
     expect(typeof meta.size).toBe('number');
   });
 
+  it('persists file-to-asset mappings in metadata', async () => {
+    await adapter.updateMetadata('sample.pdf', {
+      spaceIds: ['http://example.org/Space-001'],
+      sensorIds: ['sensor-1'],
+      assetIds: ['asset-1'],
+    });
+    await adapter.updateMetadata('sample.pdf', { description: 'Floor plan' });
+
+    await expect(adapter.getMetadata('sample.pdf')).resolves.toMatchObject({
+      spaceIds: ['http://example.org/Space-001'],
+      sensorIds: ['sensor-1'],
+      assetIds: ['asset-1'],
+      description: 'Floor plan',
+    });
+  });
+
   it('streams file content', async () => {
     const stream = await adapter.getContentStream('sample.pdf');
     const chunks: Buffer[] = [];

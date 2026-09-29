@@ -2,7 +2,12 @@ import { Module } from '@nestjs/common';
 import { SensorsService } from './sensors.service';
 import { SensorsController } from './sensors.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SensorData, SensorDataSchema } from './entities/sensor.entity';
+import {
+  SensorData,
+  SensorDataSchema,
+  SensorStatus,
+  SensorStatusSchema,
+} from './entities/sensor.entity';
 
 @Module({
   imports: [
@@ -10,6 +15,10 @@ import { SensorData, SensorDataSchema } from './entities/sensor.entity';
       {
         name: SensorData.name,
         schema: SensorDataSchema,
+      },
+      {
+        name: SensorStatus.name,
+        schema: SensorStatusSchema,
       },
     ]),
   ],

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, StreamableFile } from '@nestjs/common';
 import {
   ApiOkResponse,
   ApiNotFoundResponse,
@@ -6,9 +6,14 @@ import {
   ApiParam,
   ApiProduces,
   ApiTags,
+  ApiBody,
 } from '@nestjs/swagger';
 import { FilesService } from './files.service';
-import { FileErrorResponseDto, FileMetadataDto } from './entities/file.entity';
+import {
+  FileErrorResponseDto,
+  FileMetadataDto,
+  UpdateFileMetadataDto,
+} from './entities/file.entity';
 
 @ApiTags('Files')
 @Controller('files')
@@ -46,6 +51,19 @@ export class FilesController {
   @ApiNotFoundResponse({ type: FileErrorResponseDto })
   async getMetadata(@Param('id') id: string): Promise<FileMetadataDto> {
     return this.filesService.getMetadata(id);
+  }
+
+  @Put(':id/metadata')
+  @ApiOperation({ summary: 'Update metadata and asset mappings for a file' })
+  @ApiParam({ name: 'id', description: 'File identifier within storage' })
+  @ApiBody({ type: UpdateFileMetadataDto })
+  @ApiOkResponse({ type: FileMetadataDto })
+  @ApiNotFoundResponse({ type: FileErrorResponseDto })
+  async updateMetadata(
+    @Param('id') id: string,
+    @Body() update: UpdateFileMetadataDto,
+  ): Promise<FileMetadataDto> {
+    return this.filesService.updateMetadata(id, update);
   }
 
   @Get(':id/content')

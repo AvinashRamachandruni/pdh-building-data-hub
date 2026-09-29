@@ -31,6 +31,15 @@ export class FileMetadataDto {
   @ApiPropertyOptional({ description: 'Related asset identifier, if known' })
   assetId?: string;
 
+  @ApiPropertyOptional({ type: [String], description: 'Related space identifiers' })
+  spaceIds?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Related sensor identifiers' })
+  sensorIds?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Related asset identifiers' })
+  assetIds?: string[];
+
   @ApiPropertyOptional({ description: 'Last modified timestamp (ISO 8601)' })
   timestamp?: string;
 
@@ -49,4 +58,24 @@ export class FileErrorResponseDto {
 
   @ApiProperty({ example: 'File not found' })
   message: string;
+}
+
+export class UpdateFileMetadataDto {
+  @ApiPropertyOptional()
+  assetId?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  spaceIds?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  sensorIds?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  assetIds?: string[];
+
+  @ApiPropertyOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  provenance?: string;
 }

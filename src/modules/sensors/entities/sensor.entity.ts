@@ -30,6 +30,21 @@ export class SensorData {
   timestamp: Date;
 }
 
+@Schema({ collection: 'sensor_status' })
+export class SensorStatus {
+  @Prop({ required: true, unique: true, index: true })
+  @ApiProperty()
+  sensor_id: string;
+
+  @Prop({ required: true, type: Boolean })
+  @ApiProperty()
+  active: boolean;
+
+  @Prop({ required: true, type: Date, default: Date.now })
+  @ApiProperty()
+  updated_at: Date;
+}
+
 export class SensorDataResult {
   @ApiProperty()
   timestamp: Date;
@@ -55,3 +70,9 @@ export class SensorDataResponse {
 }
 
 export const SensorDataSchema = SchemaFactory.createForClass(SensorData); // create a schema for the SensorData class.
+export const SensorStatusSchema = SchemaFactory.createForClass(SensorStatus);
+
+export class SetSensorStatusRequest {
+  @ApiProperty({ description: 'Whether the sensor is active' })
+  active: boolean;
+}

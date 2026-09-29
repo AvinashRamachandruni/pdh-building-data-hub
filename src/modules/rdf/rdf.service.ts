@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import { createHash } from 'node:crypto';
@@ -77,6 +77,78 @@ export class RdfService {
       });
       throw new Error(`Failed to execute SPARQL query: ${error.message}`);
     }
+  }
+
+  private async executeSparqlUpdate(update: string): Promise<void> {
+    try {
+      const statementsUrl = `${this.rdfServerUrl.replace(/\/+$/, '')}/statements`;
+      await axios.post(statementsUrl, update, {
+        headers: { 'Content-Type': 'application/sparql-update' },
+      });
+    } catch (error: any) {
+      this.logger.error('SPARQL update failed:', {
+        message: error.message,
+        status: error.response?.status,
+      });
+      throw new Error(`Failed to execute SPARQL update: ${error.message}`);
+    }
+  }
+
+  async createSensorSpaceMapping(sensorId: string, spaceId: string) {
+    const normalizedSensorId = sensorId?.trim();
+    const normalizedSpaceId = this.normalizeIri(spaceId);
+    if (!normalizedSensorId) {
+      throw new BadRequestException('sensorId is required');
+    }
+
+    const sensorSubject = `urn:pdh:sensor:${encodeURIComponent(normalizedSensorId)}`;
+    const sensorIdLiteral = JSON.stringify(normalizedSensorId);
+    const update = `
+      PREFIX : <http://ams.validation/ontology#>
+      PREFIX asset: <http://example.org/asset#>
+      DELETE {
+        GRAPH <${this.mappingGraphUri}> { ?sensor ?locatedInPredicate ?existingSpace . }
+      }
+      INSERT {
+        GRAPH <${this.mappingGraphUri}> {
+          <${sensorSubject}> asset:sensorId ${sensorIdLiteral} ;
+            asset:locatedIn <${normalizedSpaceId}> .
+        }
+      }
+      WHERE {
+        OPTIONAL {
+          GRAPH <${this.mappingGraphUri}> {
+            VALUES ?sensorIdPredicate { asset:sensorId :sensorId }
+            VALUES ?locatedInPredicate { asset:locatedIn :locatedIn }
+            ?sensor ?sensorIdPredicate ${sensorIdLiteral} ;
+              ?locatedInPredicate ?existingSpace .
+          }
+        }
+      }
+    `;
+
+    await this.executeSparqlUpdate(update);
+    return { sensorId: normalizedSensorId, spaceId: normalizedSpaceId };
+  }
+
+  private normalizeIri(value: string): string {
+    if (!value?.trim()) {
+      throw new BadRequestException('spaceId is required');
+    }
+    let iri: URL;
+    try {
+      iri = new URL(value.trim());
+    } catch {
+      throw new BadRequestException(
+        'spaceId must be an absolute HTTP, HTTPS, or URN IRI',
+      );
+    }
+    if (!['http:', 'https:', 'urn:'].includes(iri.protocol)) {
+      throw new BadRequestException(
+        'spaceId must be an absolute HTTP, HTTPS, or URN IRI',
+      );
+    }
+    return iri.href;
   }
 
   /**

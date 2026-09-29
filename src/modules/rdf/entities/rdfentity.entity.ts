@@ -123,3 +123,27 @@ export class SpaceSensorMappingResponse {
   })
   sensorName: string;
 }
+
+export class SensorSpaceMappingRequest {
+  @ApiProperty({ example: '11NR00STE-001TRL' })
+  sensorId: string;
+
+  @ApiProperty({ example: 'http://example.com/building#Space-001' })
+  spaceId: string;
+}
+
+export class SpaceSensorMappingRequest {
+  @ApiProperty({ example: 'http://example.com/building#Space-001' })
+  spaceId: string;
+
+  @ApiProperty({ example: '11NR00STE-001TRL' })
+  sensorId: string;
+}
+
+export class SensorSpaceMappingResult {
+  @ApiProperty()
+  sensorId: string;
+
+  @ApiProperty()
+  spaceId: string;
+}

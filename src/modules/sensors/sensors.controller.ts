@@ -1,13 +1,26 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { SensorsService } from './sensors.service';
 import {
   ApiDefaultResponse,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { SensorDataResponse, SensorDataResult } from './entities/sensor.entity';
+import {
+  SensorDataResponse,
+  SensorDataResult,
+  SetSensorStatusRequest,
+} from './entities/sensor.entity';
 import { DateValidationPipe } from 'src/pipes/DateValidationPipe';
 
 @ApiTags('Sensor data')
@@ -24,6 +37,20 @@ export class SensorsController {
   })
   async getAllSensorIds() {
     return await this.sensorsService.getAllSensorIds();
+  }
+
+  @Post(':sensor_id/status')
+  @ApiOperation({ summary: 'Set a sensor active or inactive' })
+  @ApiParam({ name: 'sensor_id', description: 'BMS sensor identifier' })
+  @ApiBody({ type: SetSensorStatusRequest })
+  async setSensorStatus(
+    @Param('sensor_id') sensor_id: string,
+    @Body() body: SetSensorStatusRequest,
+  ) {
+    if (typeof body?.active !== 'boolean') {
+      throw new BadRequestException('active must be a boolean');
+    }
+    return this.sensorsService.setSensorStatus(sensor_id, body.active);
   }
 
   @Get(':sensor_id/latest')

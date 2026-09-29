@@ -3,6 +3,7 @@ import { Readable } from 'stream';
 import {
   FILE_SOURCE_ADAPTER,
   FileMetadata,
+  FileMetadataUpdate,
   FileSourceAdapter,
 } from './interfaces/file-source-adapter.interface';
 
@@ -24,6 +25,13 @@ export class FilesService {
 
   async getMetadata(id: string): Promise<FileMetadata> {
     return this.fileSourceAdapter.getMetadata(id);
+  }
+
+  async updateMetadata(
+    id: string,
+    update: FileMetadataUpdate,
+  ): Promise<FileMetadata> {
+    return this.fileSourceAdapter.updateMetadata(id, update);
   }
 
   async getContentStream(id: string): Promise<Readable> {

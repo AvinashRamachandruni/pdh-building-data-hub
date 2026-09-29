@@ -105,6 +105,30 @@ describe('RdfService entity cache', () => {
     expect(post).toHaveBeenCalledTimes(1);
   });
 
+  it('writes a sensor-space mapping to the GraphDB statements endpoint', async () => {
+    const mapping = await service.createSensorSpaceMapping(
+      'sensor-"1',
+      'http://example.org/building#Space-001',
+    );
+
+    expect(mapping).toEqual({
+      sensorId: 'sensor-"1',
+      spaceId: 'http://example.org/building#Space-001',
+    });
+    expect(post).toHaveBeenCalledWith(
+      'http://graphdb:7200/repositories/building/statements',
+      expect.stringContaining('asset:sensorId "sensor-\\"1"'),
+      { headers: { 'Content-Type': 'application/sparql-update' } },
+    );
+  });
+
+  it('rejects non-absolute space identifiers without calling GraphDB', async () => {
+    await expect(
+      service.createSensorSpaceMapping('sensor-1', 'Space-001'),
+    ).rejects.toThrow('spaceId must be an absolute HTTP, HTTPS, or URN IRI');
+    expect(post).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid TTL configuration', () => {
     config.get.mockImplementationOnce((name: string) =>
       name === 'RDF_SERVER'

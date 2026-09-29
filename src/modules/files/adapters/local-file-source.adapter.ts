@@ -8,9 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as path from 'path';
+import { createHash } from 'node:crypto';
 import { Readable } from 'stream';
 import {
   FileMetadata,
+  FileMetadataUpdate,
   FileSourceAdapter,
 } from '../interfaces/file-source-adapter.interface';
 
@@ -34,6 +36,15 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 function resolveMediaType(filename: string): string {
   const extension = path.extname(filename).toLowerCase();
   return MIME_BY_EXTENSION[extension] || 'application/octet-stream';
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  );
 }
 
 /**
@@ -71,6 +82,32 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
     return this.buildMetadata(id);
   }
 
+  async updateMetadata(
+    id: string,
+    update: FileMetadataUpdate,
+  ): Promise<FileMetadata> {
+    const current = await this.buildMetadata(id);
+    this.validateMetadataUpdate(update);
+
+    const updated = { ...current, ...update };
+    const metadataDirectory = path.join(this.storageRoot, '.pdh-metadata');
+    await fsPromises.mkdir(metadataDirectory, { recursive: true });
+    const storedUpdate: FileMetadataUpdate = {
+      assetId: updated.assetId,
+      spaceIds: updated.spaceIds,
+      sensorIds: updated.sensorIds,
+      assetIds: updated.assetIds,
+      description: updated.description,
+      provenance: updated.provenance,
+    };
+    await fsPromises.writeFile(
+      this.metadataPath(id, metadataDirectory),
+      JSON.stringify(storedUpdate),
+      'utf8',
+    );
+    return updated;
+  }
+
   async getContentStream(id: string): Promise<Readable> {
     const filePath = this.resolveSafePath(id);
     await this.ensureFileExists(filePath);
@@ -104,7 +141,7 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
     const filePath = this.resolveSafePath(id);
     const stats = await this.ensureFileExists(filePath);
 
-    return {
+    const metadata: FileMetadata = {
       id,
       filename: path.basename(filePath),
       mediaType: resolveMediaType(filePath),
@@ -112,6 +149,43 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
       source: this.sourceName,
       timestamp: stats.mtime.toISOString(),
     };
+    const stored = await this.readStoredMetadata(id);
+    return { ...metadata, ...stored };
+  }
+
+  private metadataPath(id: string, directory = path.join(this.storageRoot, '.pdh-metadata')): string {
+    const digest = createHash('sha256').update(id).digest('hex');
+    return path.join(directory, `${digest}.json`);
+  }
+
+  private async readStoredMetadata(id: string): Promise<FileMetadataUpdate> {
+    try {
+      const contents = await fsPromises.readFile(this.metadataPath(id), 'utf8');
+      return JSON.parse(contents) as FileMetadataUpdate;
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return {};
+      }
+      throw error;
+    }
+  }
+
+  private validateMetadataUpdate(update: FileMetadataUpdate): void {
+    for (const field of ['assetId', 'description', 'provenance'] as const) {
+      const value = update[field];
+      if (value !== undefined && typeof value !== 'string') {
+        throw new BadRequestException(`${field} must be a string`);
+      }
+    }
+    for (const field of ['spaceIds', 'sensorIds', 'assetIds'] as const) {
+      const values = update[field];
+      if (
+        values !== undefined &&
+        (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
+      ) {
+        throw new BadRequestException(`${field} must be an array of strings`);
+      }
+    }
   }
 
   private async ensureFileExists(filePath: string): Promise<fs.Stats> {
@@ -122,7 +196,7 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
       }
       return stats;
     } catch (error) {
-      if (error?.code === 'ENOENT') {
+      if (isMissingFileError(error)) {
         throw new NotFoundException('File not found');
       }
       throw error;

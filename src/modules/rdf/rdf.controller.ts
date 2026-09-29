@@ -25,6 +25,9 @@ import {
   RDFEntityListRequest,
   SensorSpaceMappingResponse,
   SpaceSensorMappingResponse,
+  SensorSpaceMappingRequest,
+  SpaceSensorMappingRequest,
+  SensorSpaceMappingResult,
 } from './entities/rdfentity.entity';
 
 @ApiTags('BIM')
@@ -130,6 +133,60 @@ export class RdfController {
       }
       throw new HttpException(
         `Failed to retrieve space-sensor mappings: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('mappings/sensor/space')
+  @ApiOperation({ summary: 'Create or replace a sensor-space mapping' })
+  @ApiBody({ type: SensorSpaceMappingRequest })
+  @ApiResponse({
+    status: 201,
+    description: 'Sensor-space mapping saved',
+    type: SensorSpaceMappingResult,
+  })
+  async createSensorSpaceMapping(
+    @Body() mapping: SensorSpaceMappingRequest,
+  ): Promise<SensorSpaceMappingResult> {
+    try {
+      return await this.rdfService.createSensorSpaceMapping(
+        mapping.sensorId,
+        mapping.spaceId,
+      );
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to create sensor-space mapping: ${error instanceof Error ? error.message : String(error)}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('mappings/space/sensors')
+  @ApiOperation({ summary: 'Create or replace a space-sensor mapping' })
+  @ApiBody({ type: SpaceSensorMappingRequest })
+  @ApiResponse({
+    status: 201,
+    description: 'Space-sensor mapping saved',
+    type: SensorSpaceMappingResult,
+  })
+  async createSpaceSensorMapping(
+    @Body() mapping: SpaceSensorMappingRequest,
+  ): Promise<SensorSpaceMappingResult> {
+    try {
+      return await this.rdfService.createSensorSpaceMapping(
+        mapping.sensorId,
+        mapping.spaceId,
+      );
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `Failed to create space-sensor mapping: ${error instanceof Error ? error.message : String(error)}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

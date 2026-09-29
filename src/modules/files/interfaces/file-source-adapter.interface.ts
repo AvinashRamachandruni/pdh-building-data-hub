@@ -11,10 +11,23 @@ export interface FileMetadata {
   size: number;
   source: string;
   assetId?: string;
+  spaceIds?: string[];
+  sensorIds?: string[];
+  assetIds?: string[];
   timestamp?: string;
   description?: string;
   provenance?: string;
 }
+
+export type FileMetadataUpdate = Pick<
+  FileMetadata,
+  | 'assetId'
+  | 'spaceIds'
+  | 'sensorIds'
+  | 'assetIds'
+  | 'description'
+  | 'provenance'
+>;
 
 /**
  * Reusable contract for file/object storage backends. Controllers and
@@ -25,6 +38,7 @@ export interface FileMetadata {
 export interface FileSourceAdapter {
   list(): Promise<FileMetadata[]>;
   getMetadata(id: string): Promise<FileMetadata>;
+  updateMetadata(id: string, update: FileMetadataUpdate): Promise<FileMetadata>;
   getContentStream(id: string): Promise<Readable>;
 }
 
