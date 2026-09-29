@@ -45,11 +45,12 @@ import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
     }),
     SensorsModule,
     RdfModule,
-    //AssetsModule,
-    //ToolsModule,
-    //TransactionsModule,
     FilesModule,
     ExternalModule,
+    AssetsModule,
+    ToolsModule,
+    TransactionsModule,
+    
   ],
   controllers: [AppController],
   providers: [AppService, {
