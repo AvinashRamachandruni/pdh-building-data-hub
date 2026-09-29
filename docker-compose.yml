@@ -7,6 +7,9 @@ services:
       - .env
     environment:
       REDIS_URL: redis://redis:6379
+      FILE_STORAGE_ROOT: /data/pdh-files
+    volumes:
+      - ./data/pdh-files:/data/pdh-files:ro
     depends_on:
       graphdb:
         condition: service_healthy
@@ -83,8 +86,13 @@ services:
   web:
     build: .
     command: npm start
+    env_file:
+      - .env
     environment:
       REDIS_URL: redis://redis:6379
+      FILE_STORAGE_ROOT: /data/pdh-files
+    volumes:
+      - ./data/pdh-files:/data/pdh-files:ro
     depends_on:
       graphdb:
         condition: service_healthy

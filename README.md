@@ -26,6 +26,31 @@ $ REDIS_ENTITY_TTL_SECONDS=300
 
 See `.env.example` for a ready-to-copy template.
 
+### Docker Compose deployment and file storage
+
+Compose sets `FILE_STORAGE_ROOT=/data/pdh-files` inside the `app` and `web`
+containers and bind-mounts `./data/pdh-files` from the host project directory
+there (read-only).
+This makes `/files` available without baking files into the image or requiring
+a Docker-managed volume. Create and populate `data/pdh-files/` **on the deployment
+host**, next to `docker-compose.yml`, before starting the stack; files must
+be readable by the container. An empty directory lets the app start, but
+`GET /files` will be empty. Local files under `data/pdh-files/` are not
+automatically copied to a cloud host when deploying from Git, and a
+re-deployment to a different host will need the files provisioned there too.
+If the host does not provide persistent storage, this bind mount will not
+persist data across host replacements.
+
+The `.env` file is read by Compose at runtime, not included in the Docker
+image. Provide it (or an equivalent deployment-specific Compose configuration)
+on the deployment host for the database, GraphDB and Keycloak settings.
+Do not commit `.env` or credentials. With the host directory and configuration
+in place, run `docker compose up --build -d` and check
+`docker compose logs app`; `GET /files` should list the files in
+`./data/pdh-files`.
+If deploying a single image rather than Compose, supply `FILE_STORAGE_ROOT`
+and mount a readable directory at that path through the cloud platform.
+
 ## RDF entity cache (Redis)
 
 The read-only `GET /rdf/id/:id` lookup (also used internally for RDF entities by
