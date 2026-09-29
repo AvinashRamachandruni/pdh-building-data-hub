@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
+import { createHash } from 'node:crypto';
+import { RedisCacheService } from '../cache/redis-cache.service';
 import {
   RDFEntity,
   RDFEntityResponse,
@@ -22,13 +24,22 @@ export class RdfService {
   private readonly logger = new Logger(RdfService.name);
   private readonly rdfServerUrl: string;
   private readonly mappingGraphUri: string;
+  private readonly entityCacheTtlSeconds: number;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly cache: RedisCacheService,
+  ) {
     const rdfServerUrl = this.configService.get<string>('RDF_SERVER');
     if (!rdfServerUrl) {
       throw new Error('RDF_SERVER environment variable is not configured');
     }
     this.rdfServerUrl = rdfServerUrl;
+    const ttl = configService.get<string>('REDIS_ENTITY_TTL_SECONDS') ?? '300';
+    if (!/^[1-9]\d*$/.test(ttl) || !Number.isSafeInteger(Number(ttl))) {
+      throw new Error('REDIS_ENTITY_TTL_SECONDS must be a positive integer');
+    }
+    this.entityCacheTtlSeconds = Number(ttl);
     this.mappingGraphUri =
       this.configService.get<string>('GRAPHDB_MAPPING_GRAPH') ||
       'http://ams.validation/graph/mapping-layer';
@@ -185,6 +196,40 @@ export class RdfService {
    */
   async getEntityByGlobalId(globalId: string): Promise<RDFEntityResult | null> {
     this.logger.log(`Retrieving RDF entity with Global ID: ${globalId}`);
+    const key = this.entityCacheKey(globalId);
+    const cached = await this.cache.get(key);
+    if (cached !== null) {
+      try {
+        const entity: unknown = JSON.parse(cached);
+        if (
+          !entity ||
+          typeof entity !== 'object' ||
+          !('created_at' in entity) ||
+          typeof entity.created_at !== 'string' ||
+          Number.isNaN(Date.parse(entity.created_at)) ||
+          !('entity_type' in entity) ||
+          typeof entity.entity_type !== 'string' ||
+          !('name' in entity) ||
+          typeof entity.name !== 'string' ||
+          !('properties' in entity) ||
+          !entity.properties ||
+          typeof entity.properties !== 'object'
+        ) {
+          throw new Error('Cached RDF entity has an invalid shape');
+        }
+        const cachedEntity = entity as RDFEntityResult & { created_at: string };
+        const result = {
+          ...cachedEntity,
+          created_at: new Date(cachedEntity.created_at),
+        };
+        return result;
+      } catch (error) {
+        this.logger.warn(
+          `Invalid cached RDF entity: ${(error as Error).message}`,
+        );
+        await this.cache.del(key);
+      }
+    }
 
     const sparqlQuery = `
       PREFIX express: <https://w3id.org/express#>  
@@ -203,7 +248,22 @@ export class RdfService {
 
     const result = await this.executeSparqlQuery(sparqlQuery);
     const entities = this.transformSparqlResultToIFCEntities(result, 'Unknown');
-    return entities.length > 0 ? entities[0] : null;
+    const entity = entities.length > 0 ? entities[0] : null;
+    if (entity) {
+      await this.cache.set(
+        key,
+        JSON.stringify(entity),
+        this.entityCacheTtlSeconds,
+      );
+    }
+    return entity;
+  }
+
+  private entityCacheKey(globalId: string): string {
+    const digest = createHash('sha256')
+      .update(JSON.stringify([this.rdfServerUrl, globalId]))
+      .digest('hex');
+    return `pdh:rdf:entity:v1:${digest}`;
   }
   /**
    * Transform SPARQL results to IFC entity format

@@ -20,9 +20,43 @@ $ WEATHER_API_KEY=changeme
 $ WEATHER_API_TIMEOUT_MS=5000
 $ WEATHER_API_AUTH_TYPE=apiKey
 $ WEATHER_API_KEY_HEADER=x-api-key
+$ REDIS_URL=redis://localhost:6379
+$ REDIS_ENTITY_TTL_SECONDS=300
 ```
 
 See `.env.example` for a ready-to-copy template.
+
+## RDF entity cache (Redis)
+
+The read-only `GET /rdf/id/:id` lookup (also used internally for RDF entities by
+global ID) caches successful GraphDB entity results for 300 seconds by default.
+Configure `REDIS_ENTITY_TTL_SECONDS` as a positive integer to change this
+duration. Missing entities and failed GraphDB queries are not cached. The cache
+key is `pdh:rdf:entity:v1:<sha256(JSON.stringify([RDF_SERVER, globalId]))>`;
+the configured repository and the complete global ID are both included. RDF
+responses do not vary by caller or token; the Keycloak guard still authenticates
+each request before the cache is consulted. The RDF update operation currently
+rejects all writes, so there are no successful RDF writes to invalidate; if
+write support is added, invalidate the corresponding detail key after a successful
+write. Changes made directly in GraphDB are reflected when the TTL expires.
+Redis outages are logged and reads fall back to GraphDB. If `REDIS_URL` is not
+set, caching is disabled and RDF reads still work.
+
+For local development, start Redis with `redis-server` and set
+`REDIS_URL=redis://localhost:6379` in `.env`. With Docker Compose, run
+`docker compose up --build`; the app uses `redis://redis:6379` on the Compose
+network regardless of the host-side `.env` URL. A running Redis service is
+optional for serving RDF reads.
+
+To verify manually, authenticate as usual and request an existing
+`GET /rdf/id/<globalId>`. Inspect its key with
+`redis-cli --scan --pattern 'pdh:rdf:entity:v1:*'` and its remaining seconds
+with `redis-cli TTL <key>`. Run `redis-cli DEL <key>` to start with a cold
+cache, then request that ID twice. The first request should query GraphDB and
+the second should return the same response without another SPARQL query in the
+app logs. After the TTL expires, the next request should query GraphDB again.
+Stop Redis and repeat the request: the RDF response should still work and the
+app should log the cache failure.
 
 ## Source Adapters
 
