@@ -27,7 +27,6 @@ import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
           configService.get<string>('MONGO_DB'),
           'bimsim',
         )}?retryWrites=true&w=majority&appName=wilson-mongo`;
-        console.log('MongoDB URI:', uri);
         return { uri };
       },
       inject: [ConfigService],
