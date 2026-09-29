@@ -46,6 +46,10 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Local file storage backend content (metadata root kept via .gitkeep)
+/data/pdh-files/*
+!/data/pdh-files/.gitkeep
+
 # Runtime data
 pids
 *.pid

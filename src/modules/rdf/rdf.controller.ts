@@ -27,7 +27,7 @@ import {
   SpaceSensorMappingResponse,
 } from './entities/rdfentity.entity';
 
-@ApiTags('RDF Data')
+@ApiTags('BIM')
 @Controller('rdf')
 export class RdfController {
   constructor(private readonly rdfService: RdfService) {}

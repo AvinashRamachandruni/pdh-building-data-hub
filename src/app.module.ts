@@ -9,6 +9,8 @@ import { AssetsModule } from './modules/assets/assets.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TransactionsModule } from './modules/dbl/transactions.module';
 import { ToolsModule } from './modules/tools/tools.module';
+import { FilesModule } from './modules/files/files.module';
+import { ExternalModule } from './modules/external/external.module';
 import { buildMongoUri } from './config/mongo-uri.util';
 import { APP_GUARD } from '@nestjs/core';
 import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
@@ -43,9 +45,11 @@ import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
     }),
     SensorsModule,
     RdfModule,
-    AssetsModule,
-    ToolsModule,
-    TransactionsModule,
+    //AssetsModule,
+    //ToolsModule,
+    //TransactionsModule,
+    FilesModule,
+    ExternalModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

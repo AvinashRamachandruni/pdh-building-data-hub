@@ -8,7 +8,7 @@ export class ToolsService {
   private models = new Map<string, Model<any>>();
 
   constructor(
-    @InjectConnection('WILSONTOOLS') private readonly connection: Connection,
+    @InjectConnection('ThirdPartyTOOLS') private readonly connection: Connection,
   ) {}
 
   private getModel(name: string): Model<any> {

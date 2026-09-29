@@ -14,7 +14,44 @@ $ SQL_DB_URL=postgres://postgres:password@postgres:5432/pdh
 $ MONGO_DB_FOR_TOOLS=pdh-tools
 $ MONGO_SERVER_FOR_TOOLS=mongodb://mongo:27017
 $ GRAPHDB_MAPPING_GRAPH=http://ams.validation/graph/mapping-layer
+$ FILE_STORAGE_ROOT=/data/pdh-files
+$ WEATHER_API_BASE_URL=https://api.example-weather-provider.com
+$ WEATHER_API_KEY=changeme
+$ WEATHER_API_TIMEOUT_MS=5000
+$ WEATHER_API_AUTH_TYPE=apiKey
+$ WEATHER_API_KEY_HEADER=x-api-key
 ```
+
+See `.env.example` for a ready-to-copy template.
+
+## Source Adapters
+
+In addition to the MongoDB (`/sensors`), RDF/GraphDB (`/rdf`), and asset composition (`/assets`) endpoints, the PDH exposes two generic, reusable source-adapter patterns so that consuming applications never need to integrate directly with heterogeneous backends:
+
+### Files / Object Adapter (`/files`)
+
+Serves binary information objects (images, PDFs, CSVs, IFC files, point clouds such as `.las`/`.laz`/`.e57`, ...) without assuming their contents can or should be converted to JSON. Content is streamed rather than loaded fully into memory, and access is restricted to a single configurable storage root (`FILE_STORAGE_ROOT`), with protection against path traversal.
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /files` | List all files with metadata |
+| `GET /files/:id` | Get metadata for one file (alias of `/files/:id/metadata`) |
+| `GET /files/:id/metadata` | Get metadata for one file |
+| `GET /files/:id/content` | Stream/download the binary file content |
+
+The storage backend is abstracted behind a `FileSourceAdapter` interface (`src/modules/files/interfaces/file-source-adapter.interface.ts`). Only the local filesystem backend (`LocalFileSourceAdapter`) is implemented today; a future S3/MinIO or point-cloud repository backend can be substituted by implementing the same interface and changing a single provider binding in `files.module.ts` - no controller or consumer changes required.
+
+### External HTTP API Adapter (`/external/*`)
+
+Lets the PDH call preconfigured external HTTP APIs on demand, without becoming a generic proxy. External sources (base URL, authentication, allowed operations/endpoints) are declared in configuration/environment variables only - there is no endpoint that accepts an arbitrary URL.
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /external/weather/current` | Example domain endpoint demonstrating the pattern |
+| `GET /external/sources/status` | Reachability status of all configured external sources |
+| `GET /external/sources/:name/status` | Reachability status of one configured external source |
+
+The reusable adapter (`HttpSourceAdapterService`, `src/modules/external/adapters/http-source-adapter.service.ts`) supports `none`, `apiKey` (HTTP header), and `bearer` (HTTP header) authentication, injects credentials from environment variables server-side, applies a configurable timeout, and never leaks secrets, base URLs, or upstream response bodies in errors or Swagger docs. Adding a new external source (FM API, ERP, GIS, ...) only requires adding an entry to `src/modules/external/config/external-sources.config.ts` plus its environment variables - existing consumers of other sources are unaffected.
 
 ##
 

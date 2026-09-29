@@ -11,7 +11,7 @@ import { buildMongoUri } from '../../config/mongo-uri.util';
     ConfigModule,
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      connectionName: 'WILSONTOOLS', // important to name it
+      connectionName: 'ThirdPartyTOOLS', // important to name it
       useFactory: async (configService: ConfigService) => ({
         uri: buildMongoUri(
           configService.get<string>('MONGO_SERVER_FOR_TOOLS'),
