@@ -20,11 +20,16 @@ $ WEATHER_API_KEY=changeme
 $ WEATHER_API_TIMEOUT_MS=5000
 $ WEATHER_API_AUTH_TYPE=apiKey
 $ WEATHER_API_KEY_HEADER=x-api-key
-$ REDIS_URL=redis://localhost:6379
+$ REDIS_URL=redis://redis:6379
 $ REDIS_ENTITY_TTL_SECONDS=300
 ```
 
-See `.env.example` for a ready-to-copy template.
+ Both the `app` and `web`
+containers receive application configuration through `env_file: .env`.
+
+When running the app directly on the host instead of in Docker, change the
+MongoDB, GraphDB, PostgreSQL, and Redis URLs in `.env` to use `localhost`, and
+set `FILE_STORAGE_ROOT=./data/pdh-files` (or another readable host directory).
 
 ### Docker Compose deployment and file storage
 
@@ -41,11 +46,10 @@ re-deployment to a different host will need the files provisioned there too.
 If the host does not provide persistent storage, this bind mount will not
 persist data across host replacements.
 
-The `.env` file is read by Compose at runtime, not included in the Docker
-image. Provide it (or an equivalent deployment-specific Compose configuration)
-on the deployment host for the database, GraphDB and Keycloak settings.
-Do not commit `.env` or credentials. With the host directory and configuration
-in place, run `docker compose up --build -d` and check
+The `.env` file is read by the compose file of the app at runtime and is not included in the Docker
+image. It contains application settings such as database URLs, Keycloak, and
+external API configuration. Do not commit `.env` or credentials. With the host
+directory and configuration in place, run `docker compose up --build -d` and check
 `docker compose logs app`; `GET /files` should list the files in
 `./data/pdh-files`.
 If deploying a single image rather than Compose, supply `FILE_STORAGE_ROOT`
@@ -68,9 +72,8 @@ Redis outages are logged and reads fall back to GraphDB. If `REDIS_URL` is not
 set, caching is disabled and RDF reads still work.
 
 For local development, start Redis with `redis-server` and set
-`REDIS_URL=redis://localhost:6379` in `.env`. With Docker Compose, run
-`docker compose up --build`; the app uses `redis://redis:6379` on the Compose
-network regardless of the host-side `.env` URL. A running Redis service is
+`REDIS_URL=redis://localhost:6379` in `.env`. With Docker Compose, the
+application uses `redis://redis:6379` from `.env`. A running Redis service is
 optional for serving RDF reads.
 
 To verify manually, authenticate as usual and request an existing

@@ -5,9 +5,6 @@ services:
       - "8090:8090"
     env_file:
       - .env
-    environment:
-      REDIS_URL: redis://redis:6379
-      FILE_STORAGE_ROOT: /data/pdh-files
     volumes:
       - ./data/pdh-files:/data/pdh-files:ro
     depends_on:
@@ -88,9 +85,6 @@ services:
     command: npm start
     env_file:
       - .env
-    environment:
-      REDIS_URL: redis://redis:6379
-      FILE_STORAGE_ROOT: /data/pdh-files
     volumes:
       - ./data/pdh-files:/data/pdh-files:ro
     depends_on:

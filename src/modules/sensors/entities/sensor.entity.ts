@@ -17,15 +17,15 @@ export type SensorDataDocument = HydratedDocument<SensorData>;
   },
 })
 export class SensorData {
-  @Prop({ required: true })
+  @Prop({ required: true, index: true })
   @ApiProperty()
   sensor_id: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Number })
   @ApiProperty()
   value: number;
 
-  @Prop({ required: true })
+  @Prop({ required: true, type: Date, index: true })
   @ApiProperty()
   timestamp: Date;
 }
