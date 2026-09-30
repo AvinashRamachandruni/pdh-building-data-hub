@@ -111,6 +111,58 @@ export class FileMetadataDto {
   provenance?: string;
 }
 
+export class SpaceMappedFileDto {
+  @ApiProperty({ description: 'File identifier in the PDH storage layer' })
+  id: string;
+
+  @ApiPropertyOptional({ description: 'Role of the file within the space mapping' })
+  fileRole?: string;
+
+  @ApiPropertyOptional({ description: 'GraphDB mapping method or assignment source' })
+  mappingMethod?: string;
+
+  @ApiPropertyOptional({ description: 'GraphDB mapping status' })
+  mappingStatus?: string;
+
+  @ApiProperty({ description: 'Whether the mapped file is still readable in the configured storage backend' })
+  available: boolean;
+
+  @ApiPropertyOptional({ description: 'Resolved file metadata from the storage backend', type: FileMetadataDto })
+  metadata?: FileMetadataDto;
+
+  @ApiPropertyOptional({ description: 'Original filename' })
+  filename?: string;
+
+  @ApiPropertyOptional({ description: 'MIME type of the file content' })
+  mediaType?: string;
+
+  @ApiPropertyOptional({ description: 'File size in bytes' })
+  size?: number;
+
+  @ApiPropertyOptional({ description: 'Storage backend identifier' })
+  source?: string;
+
+  @ApiPropertyOptional({ description: 'Absolute path used by the storage backend' })
+  storagePath?: string;
+
+  @ApiPropertyOptional({ description: 'Timestamp of the physical file' })
+  timestamp?: string;
+
+  @ApiPropertyOptional({ description: 'Diagnostic message when a mapped file is stale or unavailable' })
+  error?: string;
+}
+
+export class SpaceFilesResponseDto {
+  @ApiProperty({ example: 'space_16612' })
+  spaceId: string;
+
+  @ApiProperty({ example: 2 })
+  count: number;
+
+  @ApiProperty({ type: [SpaceMappedFileDto] })
+  files: SpaceMappedFileDto[];
+}
+
 export class FileErrorResponseDto {
   @ApiProperty({ example: 404 })
   statusCode: number;

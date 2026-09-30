@@ -24,7 +24,10 @@ export class RdfService {
   private readonly logger = new Logger(RdfService.name);
   private readonly rdfServerUrl: string;
   private readonly mappingGraphUri: string;
+  private readonly fileMappingGraphUri: string;
   private readonly entityCacheTtlSeconds: number;
+  private readonly propsNamespace: string;
+  private readonly instanceNamespace: string;
 
   constructor(
     private configService: ConfigService,
@@ -43,8 +46,20 @@ export class RdfService {
     this.mappingGraphUri =
       this.configService.get<string>('GRAPHDB_MAPPING_GRAPH') ||
       'http://ams.validation/graph/mapping-layer';
+    this.fileMappingGraphUri =
+      this.configService.get<string>('FILE_MAPPING_GRAPH') ||
+      this.mappingGraphUri ||
+      'https://pdh.example/graph/file-mappings';
+    this.propsNamespace =
+      this.configService.get<string>('RDF_PROPS_NAMESPACE') ||
+      'https://pdh.example/ontology/props#';
+    this.instanceNamespace =
+      this.configService.get<string>('RDF_INSTANCE_NAMESPACE') ||
+      'https://pdh.example/instance/';
     this.logger.log(`RDF Server URL: ${this.rdfServerUrl}`);
     this.logger.log(`RDF mapping graph: ${this.mappingGraphUri}`);
+    this.logger.log(`File mapping graph: ${this.fileMappingGraphUri}`);
+    this.logger.log(`RDF props namespace: ${this.propsNamespace}`);
   }
 
   /**
@@ -374,6 +389,105 @@ export class RdfService {
     throw new Error(
       'Update operations not supported for read-only RDF repository',
     );
+  }
+
+  private buildSpaceFilterExpressions(spaceId: string): string {
+    const spaceIdValue = spaceId.trim();
+    const localNameFilter = `REPLACE(STR(?space), "^.*[/#]", "") = ${JSON.stringify(spaceIdValue)}`;
+    const exactFilter = `STR(?space) = ${JSON.stringify(spaceIdValue)}`;
+    const instanceSpaceMatch = this.instanceNamespace
+      ? `STR(?space) = ${JSON.stringify(new URL(spaceIdValue, this.instanceNamespace).toString())}`
+      : '';
+
+    const filters = [exactFilter, localNameFilter];
+    if (instanceSpaceMatch) {
+      filters.push(instanceSpaceMatch);
+    }
+
+    return filters.map((filter) => `(${filter})`).join(' || ');
+  }
+
+  async getSpaceFileMappings(
+    spaceId: string,
+  ): Promise<
+    Array<{
+      fileId: string;
+      fileRole?: string;
+      mappingMethod?: string;
+      mappingStatus?: string;
+    }>
+  > {
+    const trimmedSpaceId = spaceId?.trim();
+    if (!trimmedSpaceId) {
+      return [];
+    }
+
+    const sparqlQuery = `
+      PREFIX props: <${this.propsNamespace}>
+      PREFIX inst: <${this.instanceNamespace}>
+
+      SELECT DISTINCT ?file ?fileId ?fileRole ?mappingMethod ?mappingStatus
+      WHERE {
+        GRAPH <${this.fileMappingGraphUri}> {
+          ?space props:hasAssociatedFile ?file .
+          ?file props:fileId ?fileId .
+
+          OPTIONAL { ?file props:fileRole ?fileRole . }
+          OPTIONAL { ?file props:mappingMethod ?mappingMethod . }
+          OPTIONAL { ?file props:mappingStatus ?mappingStatus . }
+
+          FILTER (
+            ${this.buildSpaceFilterExpressions(trimmedSpaceId)}
+          )
+        }
+      }
+    `;
+
+    try {
+      const result = await this.executeSparqlQuery(sparqlQuery);
+      return result.results.bindings.map((binding) => ({
+        fileId: binding.fileId?.value || binding.file?.value || '',
+        fileRole: binding.fileRole?.value,
+        mappingMethod: binding.mappingMethod?.value,
+        mappingStatus: binding.mappingStatus?.value,
+      }));
+    } catch (error) {
+      this.logger.error(`Failed to get files for space ${spaceId}:`, error);
+      return [];
+    }
+  }
+
+  async getSpacesForFile(
+    fileId: string,
+  ): Promise<string[]> {
+    const trimmedFileId = fileId?.trim();
+    if (!trimmedFileId) {
+      return [];
+    }
+
+    const sparqlQuery = `
+      PREFIX props: <${this.propsNamespace}>
+      PREFIX inst: <${this.instanceNamespace}>
+
+      SELECT DISTINCT ?space
+      WHERE {
+        GRAPH <${this.fileMappingGraphUri}> {
+          ?space props:hasAssociatedFile ?file .
+          ?file props:fileId ${JSON.stringify(trimmedFileId)} .
+        }
+      }
+    `;
+
+    try {
+      const result = await this.executeSparqlQuery(sparqlQuery);
+      return result.results.bindings.map((binding) => {
+        const value = binding.space?.value || '';
+        return value;
+      });
+    } catch (error) {
+      this.logger.error(`Failed to get spaces for file ${fileId}:`, error);
+      return [];
+    }
   }
 
   /**

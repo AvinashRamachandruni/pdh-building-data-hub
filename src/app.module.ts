@@ -46,8 +46,8 @@ import { KeycloakAuthGuard } from './auth/keycloak-auth.guard';
     RdfModule,
     FilesModule,
     ExternalModule,
-    AssetsModule,
     ToolsModule,
+    AssetsModule,
     TransactionsModule,
     
   ],

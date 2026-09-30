@@ -12,6 +12,8 @@ describe('FilesController', () => {
     getMetadata: jest.fn(),
     updateMetadata: jest.fn(),
     getContentStream: jest.fn(),
+    getFilesBySpace: jest.fn(),
+    getSpacesForFile: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -89,6 +91,22 @@ describe('FilesController', () => {
       sensorIds: ['sensor-1'],
     });
     expect(result.sensorIds).toEqual(['sensor-1']);
+  });
+
+  it('returns file metadata associated with a building space', async () => {
+    filesService.getFilesBySpace.mockResolvedValue({
+      spaceId: 'space_16612',
+      count: 2,
+      files: [
+        { id: 'building_manual', fileRole: 'building-common', available: true },
+      ],
+    });
+
+    const result = await controller.getFilesBySpace('space_16612');
+
+    expect(filesService.getFilesBySpace).toHaveBeenCalledWith('space_16612');
+    expect(result.count).toBe(2);
+    expect(result.files[0].id).toBe('building_manual');
   });
 
   it('streams file content with correct headers', async () => {

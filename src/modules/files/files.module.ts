@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { RdfModule } from '../rdf/rdf.module';
 import { FilesController } from './files.controller';
 import { FilesService } from './files.service';
 import { LocalFileSourceAdapter } from './adapters/local-file-source.adapter';
 import { FILE_SOURCE_ADAPTER } from './interfaces/file-source-adapter.interface';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, RdfModule],
   controllers: [FilesController],
   providers: [
     LocalFileSourceAdapter,

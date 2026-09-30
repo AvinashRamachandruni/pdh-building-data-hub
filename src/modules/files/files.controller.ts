@@ -26,6 +26,7 @@ import { FilesService } from './files.service';
 import {
   FileErrorResponseDto,
   FileMetadataDto,
+  SpaceFilesResponseDto,
   UpdateFileMetadataDto,
 } from './entities/file.entity';
 import { FileDocumentMetadata } from './interfaces/file-source-adapter.interface';
@@ -159,6 +160,40 @@ export class FilesController {
   @ApiOkResponse({ type: FileMetadataDto, isArray: true })
   async list(): Promise<FileMetadataDto[]> {
     return this.filesService.list();
+  }
+
+  @Get('by-space/:spaceId')
+  @ApiOperation({ summary: 'Get metadata for files associated with a building space' })
+  @ApiParam({
+    name: 'spaceId',
+    description: 'Space identifier or URI that exists in the GraphDB file-mapping graph',
+  })
+  @ApiOkResponse({ type: SpaceFilesResponseDto })
+  async getFilesBySpace(
+    @Param('spaceId') spaceId: string,
+  ): Promise<SpaceFilesResponseDto> {
+    return this.filesService.getFilesBySpace(spaceId);
+  }
+
+  @Get(':id/spaces')
+  @ApiOperation({ summary: 'Get spaces associated with a file ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'File identifier stored in the GraphDB mapping graph',
+  })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        fileId: 'building_manual',
+        count: 2,
+        spaces: ['space_16612', 'space_16613'],
+      },
+    },
+  })
+  async getSpacesForFile(
+    @Param('id') id: string,
+  ): Promise<{ fileId: string; count: number; spaces: string[] }> {
+    return this.filesService.getSpacesForFile(id);
   }
 
   @Get(':id')
