@@ -7,6 +7,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { ConfigService } from '@nestjs/config';
+import multipart from '@fastify/multipart';
 
 class TimestampFreeLogger extends ConsoleLogger {
   protected formatMessage(
@@ -36,6 +37,10 @@ async function bootstrap() {
     },
   );
 
+  await app.register(multipart, {
+    limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 1, parts: 2 },
+  });
+
   // Enable CORS for all origins
   app.enableCors({
     origin: true,
@@ -59,4 +64,4 @@ async function bootstrap() {
   const port = Number(configService.get('PORT')) || 3000;
   await app.listen(port, '0.0.0.0');
 }
-bootstrap();
+void bootstrap();

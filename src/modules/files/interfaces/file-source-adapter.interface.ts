@@ -6,10 +6,13 @@ import { Readable } from 'stream';
  */
 export interface FileMetadata {
   id: string;
+  fileId?: string;
   filename: string;
   mediaType: string;
   size: number;
   source: string;
+  storagePath?: string;
+  documentMetadata?: FileDocumentMetadata;
   assetId?: string;
   spaceIds?: string[];
   sensorIds?: string[];
@@ -17,6 +20,28 @@ export interface FileMetadata {
   timestamp?: string;
   description?: string;
   provenance?: string;
+}
+
+export interface FileLinkedEntity {
+  entityId: string;
+  entityType: string;
+  relation: string;
+  mappingStatus: string;
+}
+
+export interface FileDocumentMetadata {
+  fileId: string;
+  title?: string;
+  description?: string;
+  documentType?: string;
+  source?: string;
+  linkedEntities?: FileLinkedEntity[];
+}
+
+export interface UploadedFileContent {
+  filename: string;
+  mediaType: string;
+  buffer: Buffer;
 }
 
 export type FileMetadataUpdate = Pick<
@@ -37,6 +62,10 @@ export type FileMetadataUpdate = Pick<
  */
 export interface FileSourceAdapter {
   list(): Promise<FileMetadata[]>;
+  createFile(
+    file: UploadedFileContent,
+    metadata: FileDocumentMetadata,
+  ): Promise<FileMetadata>;
   getMetadata(id: string): Promise<FileMetadata>;
   updateMetadata(id: string, update: FileMetadataUpdate): Promise<FileMetadata>;
   getContentStream(id: string): Promise<Readable>;

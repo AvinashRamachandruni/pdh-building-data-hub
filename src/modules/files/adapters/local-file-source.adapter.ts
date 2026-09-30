@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,7 +14,9 @@ import { Readable } from 'stream';
 import {
   FileMetadata,
   FileMetadataUpdate,
+  FileDocumentMetadata,
   FileSourceAdapter,
+  UploadedFileContent,
 } from '../interfaces/file-source-adapter.interface';
 
 // Minimal, dependency-free MIME lookup covering the file types this
@@ -44,6 +47,15 @@ function isMissingFileError(error: unknown): boolean {
     error !== null &&
     'code' in error &&
     error.code === 'ENOENT'
+  );
+}
+
+function isExistingFileError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'EEXIST'
   );
 }
 
@@ -82,6 +94,68 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
     return this.buildMetadata(id);
   }
 
+  async createFile(
+    file: UploadedFileContent,
+    metadata: FileDocumentMetadata,
+  ): Promise<FileMetadata> {
+    this.validateDocumentMetadata(metadata);
+    if (!file.buffer.length) {
+      throw new BadRequestException('Uploaded file must not be empty');
+    }
+
+    const id = metadata.fileId.trim();
+    if (!/^[A-Za-z0-9_-]{1,100}$/.test(id)) {
+      throw new BadRequestException(
+        'fileId may contain only letters, numbers, underscores, and hyphens',
+      );
+    }
+
+    const filename = path.basename(file.filename.replace(/\\/g, '/'));
+    if (!filename || filename === '.' || filename === '..') {
+      throw new BadRequestException('Invalid uploaded filename');
+    }
+
+    const filePath = this.resolveSafePath(id);
+    const mediaType = file.mediaType || resolveMediaType(filename);
+    const metadataDirectory = path.join(this.storageRoot, '.pdh-metadata');
+    const storedMetadata: Partial<FileMetadata> = {
+      fileId: id,
+      filename,
+      mediaType,
+      size: file.buffer.length,
+      storagePath: filePath,
+      documentMetadata: { ...metadata, fileId: id },
+    };
+
+    await fsPromises.mkdir(this.storageRoot, { recursive: true });
+    await fsPromises.mkdir(metadataDirectory, { recursive: true });
+    try {
+      await fsPromises.writeFile(filePath, file.buffer, { flag: 'wx' });
+    } catch (error) {
+      if (isExistingFileError(error)) {
+        throw new ConflictException(`File ${id} already exists`);
+      }
+      throw error;
+    }
+
+    try {
+      await fsPromises.writeFile(
+        this.metadataPath(id, metadataDirectory),
+        JSON.stringify(storedMetadata),
+        'utf8',
+      );
+    } catch (error) {
+      await fsPromises.rm(filePath, { force: true });
+      throw error;
+    }
+
+    return {
+      id,
+      ...storedMetadata,
+      source: this.sourceName,
+    } as FileMetadata;
+  }
+
   async updateMetadata(
     id: string,
     update: FileMetadataUpdate,
@@ -92,7 +166,8 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
     const updated = { ...current, ...update };
     const metadataDirectory = path.join(this.storageRoot, '.pdh-metadata');
     await fsPromises.mkdir(metadataDirectory, { recursive: true });
-    const storedUpdate: FileMetadataUpdate = {
+    const storedUpdate: Partial<FileMetadata> = {
+      ...(await this.readStoredMetadata(id)),
       assetId: updated.assetId,
       spaceIds: updated.spaceIds,
       sensorIds: updated.sensorIds,
@@ -153,20 +228,64 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
     return { ...metadata, ...stored };
   }
 
-  private metadataPath(id: string, directory = path.join(this.storageRoot, '.pdh-metadata')): string {
+  private metadataPath(
+    id: string,
+    directory = path.join(this.storageRoot, '.pdh-metadata'),
+  ): string {
     const digest = createHash('sha256').update(id).digest('hex');
     return path.join(directory, `${digest}.json`);
   }
 
-  private async readStoredMetadata(id: string): Promise<FileMetadataUpdate> {
+  private async readStoredMetadata(id: string): Promise<Partial<FileMetadata>> {
     try {
       const contents = await fsPromises.readFile(this.metadataPath(id), 'utf8');
-      return JSON.parse(contents) as FileMetadataUpdate;
+      return JSON.parse(contents) as Partial<FileMetadata>;
     } catch (error) {
       if (isMissingFileError(error)) {
         return {};
       }
       throw error;
+    }
+  }
+
+  private validateDocumentMetadata(metadata: FileDocumentMetadata): void {
+    if (
+      !metadata ||
+      typeof metadata.fileId !== 'string' ||
+      !metadata.fileId.trim()
+    ) {
+      throw new BadRequestException('metadata.fileId is required');
+    }
+    for (const field of [
+      'title',
+      'description',
+      'documentType',
+      'source',
+    ] as const) {
+      const value = metadata[field];
+      if (value !== undefined && typeof value !== 'string') {
+        throw new BadRequestException(`metadata.${field} must be a string`);
+      }
+    }
+    if (metadata.linkedEntities !== undefined) {
+      if (!Array.isArray(metadata.linkedEntities)) {
+        throw new BadRequestException(
+          'metadata.linkedEntities must be an array',
+        );
+      }
+      for (const entity of metadata.linkedEntities) {
+        if (
+          !entity ||
+          ['entityId', 'entityType', 'relation', 'mappingStatus'].some(
+            (field) =>
+              typeof entity[field] !== 'string' || !entity[field].trim(),
+          )
+        ) {
+          throw new BadRequestException(
+            'Each linked entity requires entityId, entityType, relation, and mappingStatus strings',
+          );
+        }
+      }
     }
   }
 
@@ -181,7 +300,8 @@ export class LocalFileSourceAdapter implements FileSourceAdapter {
       const values = update[field];
       if (
         values !== undefined &&
-        (!Array.isArray(values) || values.some((value) => typeof value !== 'string'))
+        (!Array.isArray(values) ||
+          values.some((value) => typeof value !== 'string'))
       ) {
         throw new BadRequestException(`${field} must be an array of strings`);
       }

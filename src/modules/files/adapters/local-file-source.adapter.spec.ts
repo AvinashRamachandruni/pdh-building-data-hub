@@ -43,6 +43,53 @@ describe('LocalFileSourceAdapter', () => {
     expect(files[0]).toHaveProperty('source', 'local-fs');
   });
 
+  it('stores uploaded bytes and metadata under the supplied file ID', async () => {
+    const created = await adapter.createFile(
+      {
+        filename: '9th_floor_plan.pdf',
+        mediaType: 'application/pdf',
+        buffer: Buffer.from('uploaded plan'),
+      },
+      {
+        fileId: 'floorplan_9f_001',
+        title: '9th Floor Plan',
+        documentType: 'floor-plan',
+        source: 'pilot-building-documentation',
+        linkedEntities: [
+          {
+            entityId: 'http://example.org/space/20821',
+            entityType: 'Space',
+            relation: 'floor-plan',
+            mappingStatus: 'demo-assigned',
+          },
+        ],
+      },
+    );
+
+    expect(created).toMatchObject({
+      id: 'floorplan_9f_001',
+      fileId: 'floorplan_9f_001',
+      filename: '9th_floor_plan.pdf',
+      mediaType: 'application/pdf',
+      size: Buffer.byteLength('uploaded plan'),
+      source: 'local-fs',
+      documentMetadata: {
+        source: 'pilot-building-documentation',
+        linkedEntities: [{ entityId: 'http://example.org/space/20821' }],
+      },
+    });
+    await expect(
+      adapter.getMetadata('floorplan_9f_001'),
+    ).resolves.toMatchObject(created);
+
+    const stream = await adapter.getContentStream('floorplan_9f_001');
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk as Buffer);
+    }
+    expect(Buffer.concat(chunks).toString()).toBe('uploaded plan');
+  });
+
   it('returns metadata for a known file', async () => {
     const meta = await adapter.getMetadata('sample.pdf');
     expect(meta.filename).toBe('sample.pdf');

@@ -8,6 +8,7 @@ describe('FilesController', () => {
   let controller: FilesController;
   const filesService = {
     list: jest.fn(),
+    createFile: jest.fn(),
     getMetadata: jest.fn(),
     updateMetadata: jest.fn(),
     getContentStream: jest.fn(),
@@ -28,6 +29,41 @@ describe('FilesController', () => {
     filesService.list.mockResolvedValue([{ id: 'a.pdf' }]);
     const result = await controller.list();
     expect(result).toEqual([{ id: 'a.pdf' }]);
+  });
+
+  it('accepts a file and JSON metadata multipart upload', async () => {
+    const parts = async function* () {
+      await Promise.resolve();
+      yield {
+        type: 'file' as const,
+        fieldname: 'file',
+        filename: '9th_floor_plan.pdf',
+        mimetype: 'application/pdf',
+        file: { truncated: false },
+        toBuffer: () => Promise.resolve(Buffer.from('uploaded plan')),
+      };
+      yield {
+        type: 'field' as const,
+        fieldname: 'metadata',
+        value: JSON.stringify({
+          fileId: 'floorplan_9f_001',
+          title: '9th Floor Plan',
+        }),
+      };
+    };
+    filesService.createFile.mockResolvedValue({ id: 'floorplan_9f_001' });
+
+    const result = await controller.create({ parts } as never);
+
+    expect(filesService.createFile).toHaveBeenCalledWith(
+      {
+        filename: '9th_floor_plan.pdf',
+        mediaType: 'application/pdf',
+        buffer: Buffer.from('uploaded plan'),
+      },
+      { fileId: 'floorplan_9f_001', title: '9th Floor Plan' },
+    );
+    expect(result.id).toBe('floorplan_9f_001');
   });
 
   it('returns metadata for a file', async () => {

@@ -6,7 +6,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data/pdh-files:/data/pdh-files:ro
+      - ./data/pdh-files:/data/pdh-files
     depends_on:
       graphdb:
         condition: service_healthy
@@ -86,7 +86,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data/pdh-files:/data/pdh-files:ro
+      - ./data/pdh-files:/data/pdh-files
     depends_on:
       graphdb:
         condition: service_healthy

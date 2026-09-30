@@ -2,9 +2,11 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Readable } from 'stream';
 import {
   FILE_SOURCE_ADAPTER,
+  FileDocumentMetadata,
   FileMetadata,
   FileMetadataUpdate,
   FileSourceAdapter,
+  UploadedFileContent,
 } from './interfaces/file-source-adapter.interface';
 
 /**
@@ -21,6 +23,13 @@ export class FilesService {
 
   async list(): Promise<FileMetadata[]> {
     return this.fileSourceAdapter.list();
+  }
+
+  async createFile(
+    file: UploadedFileContent,
+    metadata: FileDocumentMetadata,
+  ): Promise<FileMetadata> {
+    return this.fileSourceAdapter.createFile(file, metadata);
   }
 
   async getMetadata(id: string): Promise<FileMetadata> {
