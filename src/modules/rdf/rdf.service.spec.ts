@@ -92,6 +92,52 @@ describe('RdfService entity cache', () => {
     expect(cache.set).not.toHaveBeenCalled();
   });
 
+  it('queries IFC4 entities by type without depending on the ontology namespace', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        head: { vars: [] },
+        results: {
+          bindings: [
+            {
+              entity: { type: 'uri', value: 'http://example.org/space-1' },
+              entityType: {
+                type: 'uri',
+                value: 'https://w3id.org/ifc/IFC4#IfcSpace',
+              },
+              name: { type: 'literal', value: 'Office' },
+            },
+          ],
+        },
+      },
+    });
+
+    const entities = await service.getEntitiesByType('IFCSpace');
+    const query = post.mock.calls[0][1] as string;
+
+    expect(entities[0].entity_type).toBe('IfcSpace');
+    expect(query).toContain('"IfcSpace"');
+    expect(query).toContain('STRENDS(STR(?namePredicate), "name_IfcRoot")');
+    expect(query).not.toContain('IFC2x3');
+  });
+
+  it('lists IFC entities across IFC schema namespaces', async () => {
+    await service.getEntities({ entity_type: 'IFCSPACE' });
+    const query = post.mock.calls[0][1] as string;
+
+    expect(query).toContain('(^|[/#])Ifc[A-Za-z0-9_]*$');
+    expect(query).toContain('"IfcSpace"');
+    expect(query).not.toContain('IFC2x3');
+  });
+
+  it('looks up global IDs using version-independent IFC predicates', async () => {
+    await service.getEntityByGlobalId('global-id-1');
+    const query = post.mock.calls[0][1] as string;
+
+    expect(query).toContain('STRENDS(STR(?globalIdPredicate), "globalId_IfcRoot")');
+    expect(query).toContain('express:hasString "global-id-1"');
+    expect(query).not.toContain('IFC2x3');
+  });
+
   it('invalidates a corrupt entry and retrieves a fresh result', async () => {
     cache.get.mockResolvedValueOnce('{not-json');
     expect((await service.getEntityById('room-1'))?.name).toBe('Room');

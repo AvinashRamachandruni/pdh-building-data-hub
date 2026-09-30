@@ -3,7 +3,7 @@ import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { ToolsService } from './tools.service';
 import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('WILSON-Tools')
+@ApiTags('Legacy or Third-party Tools')
 @Controller('tools')
 export class ToolsController {
   constructor(private readonly service: ToolsService) {}

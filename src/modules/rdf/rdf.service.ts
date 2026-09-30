@@ -156,35 +156,21 @@ export class RdfService {
    */
   async getEntitiesByType(entityType: string): Promise<RDFEntityResult[]> {
     this.logger.log(`Fetching IFC entities of type: ${entityType}`);
+      const ontologyType = this.normalizeIfcType(entityType);
 
-    // Map common IFC types to their ontology names
-    const ifcTypeMap: Record<string, string> = {
-      IFCSpace: 'IfcSpace',
-      IFCWall: 'IfcWall',
-      IFCDoor: 'IfcDoor',
-      IFCWindow: 'IfcWindow',
-      IFCBeam: 'IfcBeam',
-      IFCColumn: 'IfcColumn',
-      IFCSlab: 'IfcSlab',
-      IFCBuildingStorey: 'IfcBuildingStorey',
-      IFCBuilding: 'IfcBuilding',
-    };
-
-    const ontologyType = ifcTypeMap[entityType] || entityType;
-
-    // Simple query: only required fields, no OPTIONALs
     const sparqlQuery = `
       PREFIX express: <https://w3id.org/express#>  
-      PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       
       SELECT ?entity ?name ?globalId
       WHERE {
-        ?entity rdf:type ifc:${ontologyType} .
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj .
+       ?entity rdf:type ?entityType .
+       FILTER (REPLACE(STR(?entityType), "^.*[/#]", "") = ${JSON.stringify(ontologyType)})
+       OPTIONAL { ?entity ?namePredicate ?nameObj .
+         FILTER (STRENDS(STR(?namePredicate), "name_IfcRoot"))
              ?nameObj express:hasString ?name . }
-        OPTIONAL { ?entity ifc:globalId_IfcRoot ?globalIdObj .
+       OPTIONAL { ?entity ?globalIdPredicate ?globalIdObj .
+         FILTER (STRENDS(STR(?globalIdPredicate), "globalId_IfcRoot"))
              ?globalIdObj express:hasString ?globalId . }
       }
       ORDER BY ?name
@@ -208,29 +194,21 @@ export class RdfService {
 
     let sparqlQuery = `
       PREFIX express: <https://w3id.org/express#>
-      PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-      PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
       
       SELECT ?entity ?entityType ?name ?globalId ?description
       WHERE {
         ?entity rdf:type ?entityType .
-        FILTER CONTAINS(STR(?entityType), "IFC2x3")
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?name . }
-        OPTIONAL { ?entity ifc:globalId_IfcRoot ?globalIdObj . ?globalIdObj express:hasString ?globalId . }
-        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj express:hasString ?description . }
+        FILTER (REGEX(STR(?entityType), "(^|[/#])Ifc[A-Za-z0-9_]*$"))
+        OPTIONAL { ?entity ?namePredicate ?nameObj . FILTER (STRENDS(STR(?namePredicate), "name_IfcRoot")) ?nameObj express:hasString ?name . }
+        OPTIONAL { ?entity ?globalIdPredicate ?globalIdObj . FILTER (STRENDS(STR(?globalIdPredicate), "globalId_IfcRoot")) ?globalIdObj express:hasString ?globalId . }
+        OPTIONAL { ?entity ?descriptionPredicate ?descObj . FILTER (STRENDS(STR(?descriptionPredicate), "description_IfcRoot")) ?descObj express:hasString ?description . }
     `;
 
     // Add entity type filter
     if (entity_type) {
-      const ifcTypeMap: Record<string, string> = {
-        IFCSpace: 'IfcSpace',
-        IFCWall: 'IfcWall',
-        IFCDoor: 'IfcDoor',
-        IFCWindow: 'IfcWindow',
-      };
-      const ontologyType = ifcTypeMap[entity_type] || entity_type;
-      sparqlQuery += `FILTER (?entityType = ifc:${ontologyType})`;
+      const ontologyType = this.normalizeIfcType(entity_type);
+      sparqlQuery += `FILTER (REPLACE(STR(?entityType), "^.*[/#]", "") = ${JSON.stringify(ontologyType)})`;
     }
 
     // Add name filter
@@ -305,16 +283,16 @@ export class RdfService {
 
     const sparqlQuery = `
       PREFIX express: <https://w3id.org/express#>  
-      PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
       
       SELECT ?entity ?entityType ?name ?globalId ?description
       WHERE {
         ?entity rdf:type ?entityType .
-        ?entity ifc:globalId_IfcRoot ?globalIdObj .
-        ?globalIdObj express:hasString "${globalId}" .
-        OPTIONAL { ?entity ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?name . }
-        OPTIONAL { ?entity ifc:description_IfcRoot ?descObj . ?descObj express:hasString ?description . }
+        ?entity ?globalIdPredicate ?globalIdObj .
+        FILTER (STRENDS(STR(?globalIdPredicate), "globalId_IfcRoot"))
+        ?globalIdObj express:hasString ${JSON.stringify(globalId)} .
+        OPTIONAL { ?entity ?namePredicate ?nameObj . FILTER (STRENDS(STR(?namePredicate), "name_IfcRoot")) . ?nameObj express:hasString ?name . }
+        OPTIONAL { ?entity ?descriptionPredicate ?descObj . FILTER (STRENDS(STR(?descriptionPredicate), "description_IfcRoot")) . ?descObj express:hasString ?description . }
       }
     `;
 
@@ -347,7 +325,7 @@ export class RdfService {
     return result.results.bindings.map((binding) => {
       const entityUri = binding.entity?.value || binding.space?.value || '';
       const entityType = binding.entityType?.value
-        ? binding.entityType.value.split('#').pop() || defaultEntityType
+        ? binding.entityType.value.split(/[\/#]/).pop() || defaultEntityType
         : defaultEntityType;
 
       const properties: Record<string, any> = {
@@ -379,6 +357,16 @@ export class RdfService {
     return this.getEntityByGlobalId(entityId);
   }
 
+  private normalizeIfcType(entityType: string): string {
+    const typeName = entityType.trim();
+    const bareName = /^ifc/i.test(typeName) ? typeName.slice(3) : typeName;
+    const normalizedName =
+      bareName === bareName.toUpperCase()
+        ? `${bareName.charAt(0)}${bareName.slice(1).toLowerCase()}`
+        : `${bareName.charAt(0).toUpperCase()}${bareName.slice(1)}`;
+    return `Ifc${normalizedName}`;
+  }
+
   async updateEntity(
     entityId: string,
     updateEntityDto: Partial<RDFEntity>,
@@ -400,7 +388,6 @@ export class RdfService {
     const sparqlQuery = `
       PREFIX : <http://ams.validation/ontology#>
       PREFIX asset: <http://example.org/asset#>
-      PREFIX ifc: <https://standards.buildingsmart.org/IFC/DEV/IFC2x3/TC1/OWL#>
       PREFIX express: <https://w3id.org/express#>
       
       SELECT ?sensor ?spaceId ?resolvedSpaceName
@@ -412,7 +399,11 @@ export class RdfService {
           ?sensor ?locatedInPredicate ?space .
         }
         BIND(STR(?space) AS ?spaceId)
-        OPTIONAL { ?space ifc:name_IfcRoot ?nameObj . ?nameObj express:hasString ?spaceName . }
+        OPTIONAL {
+          ?space ?namePredicate ?nameObj .
+          FILTER (STRENDS(STR(?namePredicate), "name_IfcRoot"))
+          ?nameObj express:hasString ?spaceName .
+        }
         OPTIONAL {
           GRAPH <${this.mappingGraphUri}> {
             ?space asset:name ?mappedSpaceName .
