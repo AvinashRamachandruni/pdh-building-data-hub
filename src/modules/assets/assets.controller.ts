@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import {
   ApiDefaultResponse,
@@ -78,5 +78,21 @@ export class AssetsController {
     @Query('include') include?: string,
   ): Promise<AssetResponse> {
     return this.assetsService.getSpaceStatus(spaceId, include);
+  }
+
+  @Get('space-context')
+  @ApiOperation({
+    summary: 'Get sensors and files mapped to an IFC space',
+  })
+  @ApiQuery({
+    name: 'ifcSpaceId',
+    required: true,
+    description: 'Local IFC space identifier or full IFC space URI',
+  })
+  async getSpaceContextByIfcSpace(@Query('ifcSpaceId') ifcSpaceId?: string) {
+    if (!ifcSpaceId?.trim()) {
+      throw new BadRequestException('ifcSpaceId is required');
+    }
+    return this.assetsService.getSpaceContextByIfcSpace(ifcSpaceId);
   }
 }

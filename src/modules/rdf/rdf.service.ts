@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosResponse } from 'axios';
 import { createHash } from 'node:crypto';
@@ -19,6 +24,18 @@ interface SPARQLResult {
   };
 }
 
+export interface SpaceSensorLink {
+  rdfSensorId: string;
+  measurementSensorId: string;
+}
+
+export interface SpaceFileMapping {
+  fileId: string;
+  fileRole?: string;
+  mappingMethod?: string;
+  mappingStatus?: string;
+}
+
 @Injectable()
 export class RdfService {
   private readonly logger = new Logger(RdfService.name);
@@ -26,8 +43,7 @@ export class RdfService {
   private readonly mappingGraphUri: string;
   private readonly fileMappingGraphUri: string;
   private readonly entityCacheTtlSeconds: number;
-  private readonly propsNamespace: string;
-  private readonly instanceNamespace: string;
+  private readonly propsNamespace?: string;
 
   constructor(
     private configService: ConfigService,
@@ -48,18 +64,20 @@ export class RdfService {
       'http://ams.validation/graph/mapping-layer';
     this.fileMappingGraphUri =
       this.configService.get<string>('FILE_MAPPING_GRAPH') ||
-      this.mappingGraphUri ||
       'https://pdh.example/graph/file-mappings';
     this.propsNamespace =
-      this.configService.get<string>('RDF_PROPS_NAMESPACE') ||
-      'https://pdh.example/ontology/props#';
-    this.instanceNamespace =
-      this.configService.get<string>('RDF_INSTANCE_NAMESPACE') ||
-      'https://pdh.example/instance/';
+      this.configService.get<string>('RDF_PROPS_NAMESPACE')?.trim() ||
+      undefined;
     this.logger.log(`RDF Server URL: ${this.rdfServerUrl}`);
     this.logger.log(`RDF mapping graph: ${this.mappingGraphUri}`);
     this.logger.log(`File mapping graph: ${this.fileMappingGraphUri}`);
-    this.logger.log(`RDF props namespace: ${this.propsNamespace}`);
+    if (this.propsNamespace) {
+      this.logger.log(`RDF props namespace: ${this.propsNamespace}`);
+    } else {
+      this.logger.warn(
+        'RDF_PROPS_NAMESPACE is not configured; mapping queries will match the required predicate local names',
+      );
+    }
   }
 
   /**
@@ -107,6 +125,27 @@ export class RdfService {
       });
       throw new Error(`Failed to execute SPARQL update: ${error.message}`);
     }
+  }
+
+  private propsPrefix(): string {
+    return this.propsNamespace
+      ? `PREFIX props: <${this.propsNamespace}>`
+      : '';
+  }
+
+  private propsTriple(
+    subject: string,
+    predicate: string,
+    object: string,
+    variableName: string,
+  ): string {
+    if (this.propsNamespace) {
+      return `${subject} props:${predicate} ${object} .`;
+    }
+
+    const predicateVariable = `?${variableName}`;
+    return `${subject} ${predicateVariable} ${object} .
+        FILTER (REGEX(STR(${predicateVariable}), "[/#]${predicate}$"))`;
   }
 
   async createSensorSpaceMapping(sensorId: string, spaceId: string) {
@@ -391,54 +430,112 @@ export class RdfService {
     );
   }
 
-  private buildSpaceFilterExpressions(spaceId: string): string {
-    const spaceIdValue = spaceId.trim();
-    const localNameFilter = `REPLACE(STR(?space), "^.*[/#]", "") = ${JSON.stringify(spaceIdValue)}`;
-    const exactFilter = `STR(?space) = ${JSON.stringify(spaceIdValue)}`;
-    const instanceSpaceMatch = this.instanceNamespace
-      ? `STR(?space) = ${JSON.stringify(new URL(spaceIdValue, this.instanceNamespace).toString())}`
-      : '';
-
-    const filters = [exactFilter, localNameFilter];
-    if (instanceSpaceMatch) {
-      filters.push(instanceSpaceMatch);
+  async resolveBotSpaceFromIfcSpace(
+    ifcSpaceIdOrUri: string,
+  ): Promise<string | null> {
+    const identifier = ifcSpaceIdOrUri?.trim();
+    if (!identifier) {
+      throw new BadRequestException('ifcSpaceId is required');
     }
 
-    return filters.map((filter) => `(${filter})`).join(' || ');
+    let fullIfcUri: string | undefined;
+    try {
+      const parsed = new URL(identifier);
+      if (!['http:', 'https:', 'urn:'].includes(parsed.protocol)) {
+        throw new Error('Unsupported IFC space URI scheme');
+      }
+      fullIfcUri = parsed.href;
+    } catch {
+      if (/^[a-z][a-z\d+.-]*:/i.test(identifier)) {
+        throw new BadRequestException(
+          'ifcSpaceId must be a local identifier or an absolute HTTP, HTTPS, or URN URI',
+        );
+      }
+    }
+
+    const ifcSpaceFilter = fullIfcUri
+      ? `STR(?ifcSpace) = ${JSON.stringify(fullIfcUri)}`
+      : `REPLACE(STR(?ifcSpace), "^.*[/#]", "") = ${JSON.stringify(identifier)}`;
+    const sparqlQuery = `
+      PREFIX bot: <https://w3id.org/bot#>
+      ${this.propsPrefix()}
+
+      SELECT DISTINCT ?botSpace
+      WHERE {
+        ?botSpace a bot:Space .
+        ${this.propsTriple(
+          '?botSpace',
+          'mappedIfcSpace',
+          '?ifcSpace',
+          'mappedIfcSpacePredicate',
+        )}
+        FILTER (${ifcSpaceFilter})
+      }
+    `;
+
+    const result = await this.executeSparqlQuery(sparqlQuery);
+    const botSpaces = [
+      ...new Set(
+        result.results.bindings
+          .map((binding) => binding.botSpace?.value)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ];
+
+    if (botSpaces.length === 0) {
+      this.logger.warn(`No BOT space mapping found for IFC space ${identifier}`);
+      return null;
+    }
+    if (botSpaces.length > 1) {
+      this.logger.error(
+        `Mapping inconsistency: IFC space ${identifier} maps to ${botSpaces.length} BOT spaces`,
+      );
+      throw new ConflictException(
+        `IFC space '${identifier}' maps to multiple BOT spaces`,
+      );
+    }
+
+    return botSpaces[0];
   }
 
   async getSpaceFileMappings(
     spaceId: string,
-  ): Promise<
-    Array<{
-      fileId: string;
-      fileRole?: string;
-      mappingMethod?: string;
-      mappingStatus?: string;
-    }>
-  > {
-    const trimmedSpaceId = spaceId?.trim();
-    if (!trimmedSpaceId) {
+  ): Promise<SpaceFileMapping[]> {
+    const botSpaceUri = await this.resolveBotSpaceFromIfcSpace(spaceId);
+    if (!botSpaceUri) {
       return [];
     }
 
+    return this.getSpaceFileMappingsByBotSpace(botSpaceUri);
+  }
+
+  async getSpaceFileMappingsByBotSpace(
+    botSpaceUri: string,
+  ): Promise<SpaceFileMapping[]> {
     const sparqlQuery = `
-      PREFIX props: <${this.propsNamespace}>
-      PREFIX inst: <${this.instanceNamespace}>
+      ${this.propsPrefix()}
 
       SELECT DISTINCT ?file ?fileId ?fileRole ?mappingMethod ?mappingStatus
       WHERE {
         GRAPH <${this.fileMappingGraphUri}> {
-          ?space props:hasAssociatedFile ?file .
-          ?file props:fileId ?fileId .
+          ${this.propsTriple(
+            '?botSpace',
+            'hasAssociatedFile',
+            '?file',
+            'hasAssociatedFilePredicate',
+          )}
+          ${this.propsTriple('?file', 'fileId', '?fileId', 'fileIdPredicate')}
 
-          OPTIONAL { ?file props:fileRole ?fileRole . }
-          OPTIONAL { ?file props:mappingMethod ?mappingMethod . }
-          OPTIONAL { ?file props:mappingStatus ?mappingStatus . }
-
-          FILTER (
-            ${this.buildSpaceFilterExpressions(trimmedSpaceId)}
-          )
+          OPTIONAL {
+            ${this.propsTriple('?file', 'fileRole', '?fileRole', 'fileRolePredicate')}
+          }
+          OPTIONAL {
+            ${this.propsTriple('?file', 'mappingMethod', '?mappingMethod', 'mappingMethodPredicate')}
+          }
+          OPTIONAL {
+            ${this.propsTriple('?file', 'mappingStatus', '?mappingStatus', 'mappingStatusPredicate')}
+          }
+          FILTER (STR(?botSpace) = ${JSON.stringify(botSpaceUri)})
         }
       }
     `;
@@ -452,7 +549,7 @@ export class RdfService {
         mappingStatus: binding.mappingStatus?.value,
       }));
     } catch (error) {
-      this.logger.error(`Failed to get files for space ${spaceId}:`, error);
+      this.logger.error(`Failed to get files for BOT space ${botSpaceUri}:`, error);
       return [];
     }
   }
@@ -466,14 +563,23 @@ export class RdfService {
     }
 
     const sparqlQuery = `
-      PREFIX props: <${this.propsNamespace}>
-      PREFIX inst: <${this.instanceNamespace}>
+      ${this.propsPrefix()}
 
       SELECT DISTINCT ?space
       WHERE {
         GRAPH <${this.fileMappingGraphUri}> {
-          ?space props:hasAssociatedFile ?file .
-          ?file props:fileId ${JSON.stringify(trimmedFileId)} .
+          ${this.propsTriple(
+            '?space',
+            'hasAssociatedFile',
+            '?file',
+            'hasAssociatedFilePredicate',
+          )}
+          ${this.propsTriple(
+            '?file',
+            'fileId',
+            JSON.stringify(trimmedFileId),
+            'fileIdPredicate',
+          )}
         }
       }
     `;
@@ -554,35 +660,62 @@ export class RdfService {
   async getSpaceSensorsMappings(
     spaceId: string,
   ): Promise<Array<{ sensorId: string; sensorName: string }>> {
-    this.logger.log(`Querying sensors in space: ${spaceId}`);
+    const botSpaceUri = await this.resolveBotSpaceFromIfcSpace(spaceId);
+    if (!botSpaceUri) {
+      return [];
+    }
 
+    const sensors = await this.getSpaceSensorLinksByBotSpace(botSpaceUri);
+    return sensors.map((sensor) => ({
+      sensorId: sensor.measurementSensorId,
+      sensorName: sensor.measurementSensorId,
+    }));
+  }
+
+  async getSpaceSensorLinksByIfcSpace(
+    ifcSpaceIdOrUri: string,
+  ): Promise<SpaceSensorLink[]> {
+    const botSpaceUri = await this.resolveBotSpaceFromIfcSpace(
+      ifcSpaceIdOrUri,
+    );
+    if (!botSpaceUri) {
+      return [];
+    }
+    return this.getSpaceSensorLinksByBotSpace(botSpaceUri);
+  }
+
+  async getSpaceSensorLinksByBotSpace(
+    botSpaceUri: string,
+  ): Promise<SpaceSensorLink[]> {
     const sparqlQuery = `
-      PREFIX : <http://ams.validation/ontology#>
-      PREFIX asset: <http://example.org/asset#>
-      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      PREFIX bot: <https://w3id.org/bot#>
+      ${this.propsPrefix()}
       
-      SELECT ?sensor ?sensorId ?sensorName
+      SELECT DISTINCT ?sensor ?measurementSensorId
       WHERE {
-        GRAPH <${this.mappingGraphUri}> {
-          VALUES ?sensorIdPredicate { asset:sensorId :sensorId }
-          VALUES ?locatedInPredicate { asset:locatedIn :locatedIn }
-          ?sensor ?locatedInPredicate <${spaceId}> .
-          ?sensor ?sensorIdPredicate ?sensorId .
-          OPTIONAL { ?sensor rdf:label ?rdfLabel . }
-          OPTIONAL { ?sensor asset:name ?assetName . }
-        }
-        BIND(COALESCE(?rdfLabel, ?assetName, ?sensorId) AS ?sensorName)
+        ?botSpace a bot:Space ;
+          bot:containsElement ?sensor .
+        ${this.propsTriple(
+          '?sensor',
+          'measurementSensorId',
+          '?measurementSensorId',
+          'measurementSensorIdPredicate',
+        )}
+        FILTER (STR(?botSpace) = ${JSON.stringify(botSpaceUri)})
       }
     `;
 
     try {
       const result = await this.executeSparqlQuery(sparqlQuery);
       return result.results.bindings.map((binding) => ({
-        sensorId: binding.sensorId?.value || '',
-        sensorName: binding.sensorName?.value || binding.sensorId?.value || '',
+        rdfSensorId: binding.sensor?.value || '',
+        measurementSensorId: binding.measurementSensorId?.value || '',
       }));
     } catch (error) {
-      this.logger.error(`Failed to get sensors for space ${spaceId}:`, error);
+      this.logger.error(
+        `Failed to get sensors for BOT space ${botSpaceUri}:`,
+        error,
+      );
       return [];
     }
   }

@@ -57,7 +57,22 @@ export class FilesService {
 
   async getFilesBySpace(spaceId: string): Promise<SpaceFilesResponseDto> {
     const mappings = await this.rdfService.getSpaceFileMappings(spaceId);
+    return this.resolveMappedFiles(spaceId, mappings);
+  }
 
+  async getFilesByBotSpace(
+    botSpaceId: string,
+    requestedSpaceId = botSpaceId,
+  ): Promise<SpaceFilesResponseDto> {
+    const mappings =
+      await this.rdfService.getSpaceFileMappingsByBotSpace(botSpaceId);
+    return this.resolveMappedFiles(requestedSpaceId, mappings);
+  }
+
+  private async resolveMappedFiles(
+    spaceId: string,
+    mappings: Awaited<ReturnType<RdfService['getSpaceFileMappings']>>,
+  ): Promise<SpaceFilesResponseDto> {
     const files = await Promise.all(
       mappings.map(async (mapping): Promise<SpaceMappedFileDto> => {
         try {

@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SensorsService } from '../sensors/sensors.service';
 import { RdfService } from '../rdf/rdf.service';
+import { FilesService } from '../files/files.service';
+import { SpaceFilesResponseDto } from '../files/entities/file.entity';
 
 export interface AssetResponse {
   assetId: string;
@@ -16,9 +18,27 @@ export interface AssetResponse {
       id: string;
       name: string;
       lastValue?: number;
+      latestHistoricalObservation?: {
+        timestamp: Date;
+        value: number;
+      };
     }>;
   };
   message?: string;
+}
+
+export interface SpaceContextByIfcSpaceResponse {
+  ifcSpaceId: string;
+  botSpaceId: string | null;
+  sensors: Array<{
+    rdfSensorId: string;
+    measurementSensorId: string;
+    latestHistoricalObservation?: {
+      timestamp: Date;
+      value: number;
+    };
+  }>;
+  files: SpaceFilesResponseDto['files'];
 }
 
 @Injectable()
@@ -29,6 +49,7 @@ export class AssetsService {
     private configService: ConfigService,
     private sensorsService: SensorsService,
     private rdfService: RdfService,
+    private filesService: FilesService,
   ) {
     this.logger.debug(this.configService.get<string>('MONGO_SERVER'));
   }
@@ -114,17 +135,18 @@ export class AssetsService {
     );
 
     try {
-      this.logger.debug('Querying RDF for space info');
+      this.logger.debug('Resolving IFC space to BOT space');
 
-      const spaceInfo = await this.rdfService.getEntityByGlobalId(spaceId);
+      const botSpaceId =
+        await this.rdfService.resolveBotSpaceFromIfcSpace(spaceId);
 
-      if (!spaceInfo) {
+      if (!botSpaceId) {
         return {
           assetId: spaceId,
           type: 'Space',
           data: {},
           context: {},
-          message: 'Space not found',
+          message: 'Space mapping not found',
         };
       }
 
@@ -141,7 +163,7 @@ export class AssetsService {
         this.logger.debug('Querying RDF mapping for sensors');
 
         const sensorsMappings =
-          await this.rdfService.getSpaceSensorsMappings(spaceId);
+          await this.rdfService.getSpaceSensorLinksByBotSpace(botSpaceId);
 
         if (sensorsMappings.length === 0) {
           response.context.sensors = [];
@@ -154,22 +176,28 @@ export class AssetsService {
           sensorsMappings.map(async (mapping) => {
             try {
               const latestRecord = await this.sensorsService.getLatestRecord(
-                mapping.sensorId,
+                mapping.measurementSensorId,
               );
 
               return {
-                id: mapping.sensorId,
-                name: mapping.sensorName,
+                id: mapping.measurementSensorId,
+                name: mapping.measurementSensorId,
                 lastValue: latestRecord?.value,
+                latestHistoricalObservation: latestRecord
+                  ? {
+                      timestamp: latestRecord.timestamp,
+                      value: latestRecord.value,
+                    }
+                  : undefined,
               };
             } catch (error) {
               this.logger.warn(
-                `Failed to get records for sensor ${mapping.sensorId}:`,
+                `Failed to get historical records for sensor ${mapping.measurementSensorId}:`,
                 error,
               );
               return {
-                id: mapping.sensorId,
-                name: mapping.sensorName,
+                id: mapping.measurementSensorId,
+                name: mapping.measurementSensorId,
               };
             }
           }),
@@ -189,5 +217,56 @@ export class AssetsService {
         message: 'Error fetching space data',
       };
     }
+  }
+
+  async getSpaceContextByIfcSpace(
+    ifcSpaceId: string,
+  ): Promise<SpaceContextByIfcSpaceResponse> {
+    const botSpaceId =
+      await this.rdfService.resolveBotSpaceFromIfcSpace(ifcSpaceId);
+    if (!botSpaceId) {
+      return {
+        ifcSpaceId,
+        botSpaceId: null,
+        sensors: [],
+        files: [],
+      };
+    }
+
+    const [sensorLinks, fileResponse] = await Promise.all([
+      this.rdfService.getSpaceSensorLinksByBotSpace(botSpaceId),
+      this.filesService.getFilesByBotSpace(botSpaceId, ifcSpaceId),
+    ]);
+    const sensors = await Promise.all(
+      sensorLinks.map(async (sensor) => {
+        try {
+          const latestRecord = await this.sensorsService.getLatestRecord(
+            sensor.measurementSensorId,
+          );
+          return {
+            ...sensor,
+            latestHistoricalObservation: latestRecord
+              ? {
+                  timestamp: latestRecord.timestamp,
+                  value: latestRecord.value,
+                }
+              : undefined,
+          };
+        } catch (error) {
+          this.logger.warn(
+            `Failed to get historical records for sensor ${sensor.measurementSensorId}:`,
+            error,
+          );
+          return sensor;
+        }
+      }),
+    );
+
+    return {
+      ifcSpaceId,
+      botSpaceId,
+      sensors,
+      files: fileResponse.files,
+    };
   }
 }
