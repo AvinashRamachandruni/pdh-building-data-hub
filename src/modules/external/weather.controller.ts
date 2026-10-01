@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import {
   ApiOkResponse,
   ApiOperation,
@@ -26,13 +26,13 @@ export class WeatherController {
   })
   @ApiQuery({
     name: 'lat',
-    required: false,
+    required: true,
     description: 'Latitude',
     example: '52.37',
   })
   @ApiQuery({
     name: 'lon',
-    required: false,
+    required: true,
     description: 'Longitude',
     example: '4.90',
   })
@@ -41,14 +41,35 @@ export class WeatherController {
     @Query('lat') lat?: string,
     @Query('lon') lon?: string,
   ): Promise<WeatherCurrentDto> {
-    const params: Record<string, string> = {};
-    if (lat) params.lat = lat;
-    if (lon) params.lon = lon;
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+    if (
+      lat === undefined ||
+      lon === undefined ||
+      lat.trim() === '' ||
+      lon.trim() === '' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      throw new BadRequestException(
+        'Valid lat (-90 to 90) and lon (-180 to 180) query parameters are required',
+      );
+    }
 
     const data = await this.httpSourceAdapter.invoke(
       'weather',
       'current',
-      params,
+      {
+        latitude: String(latitude),
+        longitude: String(longitude),
+        current:
+          'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m',
+        timezone: 'auto',
+      },
     );
 
     return {

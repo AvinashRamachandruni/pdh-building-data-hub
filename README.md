@@ -15,11 +15,9 @@ $ MONGO_DB_FOR_TOOLS=pdh-tools
 $ MONGO_SERVER_FOR_TOOLS=mongodb://mongo:27017
 $ GRAPHDB_MAPPING_GRAPH=http://ams.validation/graph/mapping-layer
 $ FILE_STORAGE_ROOT=/data/pdh-files
-$ WEATHER_API_BASE_URL=https://api.example-weather-provider.com
-$ WEATHER_API_KEY=changeme
+$ WEATHER_API_BASE_URL=https://api.open-meteo.com
 $ WEATHER_API_TIMEOUT_MS=5000
-$ WEATHER_API_AUTH_TYPE=apiKey
-$ WEATHER_API_KEY_HEADER=x-api-key
+$ WEATHER_API_AUTH_TYPE=none
 $ REDIS_URL=redis://redis:6379
 $ REDIS_ENTITY_TTL_SECONDS=300
 ```
@@ -109,11 +107,11 @@ Lets the PDH call preconfigured external HTTP APIs on demand, without becoming a
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /external/weather/current` | Example domain endpoint demonstrating the pattern |
+| `GET /external/weather/current?lat=52.37&lon=4.90` | Current conditions from Open-Meteo for the requested coordinates |
 | `GET /external/sources/status` | Reachability status of all configured external sources |
 | `GET /external/sources/:name/status` | Reachability status of one configured external source |
 
-The reusable adapter (`HttpSourceAdapterService`, `src/modules/external/adapters/http-source-adapter.service.ts`) supports `none`, `apiKey` (HTTP header), and `bearer` (HTTP header) authentication, injects credentials from environment variables server-side, applies a configurable timeout, and never leaks secrets, base URLs, or upstream response bodies in errors or Swagger docs. Adding a new external source (FM API, ERP, GIS, ...) only requires adding an entry to `src/modules/external/config/external-sources.config.ts` plus its environment variables - existing consumers of other sources are unaffected.
+The weather endpoint uses Open-Meteo's public forecast API to return current conditions and requires valid `lat` and `lon` query parameters. The reusable adapter (`HttpSourceAdapterService`, `src/modules/external/adapters/http-source-adapter.service.ts`) supports `none`, `apiKey` (HTTP header), and `bearer` (HTTP header) authentication, injects credentials from environment variables server-side, applies a configurable timeout, and never leaks secrets, base URLs, or upstream response bodies in errors or Swagger docs. Adding a new external source (FM API, ERP, GIS, ...) only requires adding an entry to `src/modules/external/config/external-sources.config.ts` plus its environment variables - existing consumers of other sources are unaffected.
 
 ##
 

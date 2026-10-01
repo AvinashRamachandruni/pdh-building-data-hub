@@ -12,32 +12,39 @@ export function buildExternalSourcesConfig(
 ): Record<string, ExternalSourceConfig> {
   const sources: Record<string, ExternalSourceConfig> = {};
 
-  const weatherBaseUrl = configService.get<string>('WEATHER_API_BASE_URL');
-  if (weatherBaseUrl) {
-    sources.weather = {
-      name: 'weather',
-      baseUrl: weatherBaseUrl,
-      timeoutMs:
-        Number(configService.get<string>('WEATHER_API_TIMEOUT_MS')) || 5000,
-      auth: {
-        type:
-          (configService.get<string>('WEATHER_API_AUTH_TYPE') as
-            | 'none'
-            | 'apiKey'
-            | 'bearer') || 'apiKey',
-        headerName:
-          configService.get<string>('WEATHER_API_KEY_HEADER') || 'x-api-key',
-        secretEnvVar: 'WEATHER_API_KEY',
+  sources.weather = {
+    name: 'weather',
+    baseUrl:
+      configService.get<string>('WEATHER_API_BASE_URL') ||
+      'https://api.open-meteo.com',
+    timeoutMs:
+      Number(configService.get<string>('WEATHER_API_TIMEOUT_MS')) || 5000,
+    auth: {
+      type:
+        (configService.get<string>('WEATHER_API_AUTH_TYPE') as
+          | 'none'
+          | 'apiKey'
+          | 'bearer') || 'none',
+      headerName:
+        configService.get<string>('WEATHER_API_KEY_HEADER') || 'x-api-key',
+      secretEnvVar: 'WEATHER_API_KEY',
+    },
+    healthCheck: {
+      path: '/v1/forecast',
+      params: {
+        latitude: '52.37',
+        longitude: '4.90',
+        current: 'temperature_2m',
       },
-      operations: {
-        current: {
-          method: 'GET',
-          path: '/current',
-          allowedParams: ['lat', 'lon'],
-        },
+    },
+    operations: {
+      current: {
+        method: 'GET',
+        path: '/v1/forecast',
+        allowedParams: ['latitude', 'longitude', 'current', 'timezone'],
       },
-    };
-  }
+    },
+  };
 
   return sources;
 }

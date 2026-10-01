@@ -29,6 +29,10 @@ export interface ExternalSourceConfig {
   auth: ExternalSourceAuthConfig;
   timeoutMs: number;
   operations: Record<string, ExternalSourceOperation>;
+  healthCheck?: {
+    path: string;
+    params?: Record<string, string>;
+  };
 }
 
 /**

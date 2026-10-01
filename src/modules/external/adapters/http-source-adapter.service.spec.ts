@@ -12,11 +12,9 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 const ENV: Record<string, string> = {
-  WEATHER_API_BASE_URL: 'https://weather.example.com',
+  WEATHER_API_BASE_URL: 'https://api.open-meteo.com',
   WEATHER_API_TIMEOUT_MS: '2000',
-  WEATHER_API_AUTH_TYPE: 'apiKey',
-  WEATHER_API_KEY_HEADER: 'x-api-key',
-  WEATHER_API_KEY: 'super-secret-key',
+  WEATHER_API_AUTH_TYPE: 'none',
 };
 
 function buildConfigService(
@@ -45,8 +43,10 @@ describe('HttpSourceAdapterService', () => {
     const service = moduleRef.get(HttpSourceAdapterService);
 
     const result = await service.invoke('weather', 'current', {
-      lat: '1',
-      lon: '2',
+      latitude: '1',
+      longitude: '2',
+      current: 'temperature_2m',
+      timezone: 'auto',
     });
 
     expect(result).toEqual({ temp: 21 });
@@ -54,9 +54,14 @@ describe('HttpSourceAdapterService', () => {
     expect(mockedAxios.request).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'GET',
-        url: 'https://weather.example.com/current',
-        params: { lat: '1', lon: '2' },
-        headers: { 'x-api-key': 'super-secret-key' },
+        url: 'https://api.open-meteo.com/v1/forecast',
+        params: {
+          latitude: '1',
+          longitude: '2',
+          current: 'temperature_2m',
+          timezone: 'auto',
+        },
+        headers: {},
         timeout: 2000,
       }),
     );
@@ -134,7 +139,10 @@ describe('HttpSourceAdapterService', () => {
         HttpSourceAdapterService,
         {
           provide: ConfigService,
-          useValue: buildConfigService({ WEATHER_API_KEY: undefined }),
+          useValue: buildConfigService({
+            WEATHER_API_AUTH_TYPE: 'apiKey',
+            WEATHER_API_KEY: undefined,
+          }),
         },
       ],
     }).compile();
@@ -165,6 +173,32 @@ describe('HttpSourceAdapterService', () => {
 
     const status = await service.healthCheck('weather');
     expect(status).toEqual({ source: 'weather', status: 'unreachable' });
+  });
+
+  it('checks the configured current-weather endpoint', async () => {
+    mockedAxios.get.mockResolvedValue({ data: {} });
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        HttpSourceAdapterService,
+        { provide: ConfigService, useValue: buildConfigService() },
+      ],
+    }).compile();
+    const service = moduleRef.get(HttpSourceAdapterService);
+
+    const status = await service.healthCheck('weather');
+    expect(status).toEqual({ source: 'weather', status: 'ok' });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      'https://api.open-meteo.com/v1/forecast',
+      expect.objectContaining({
+        params: {
+          latitude: '52.37',
+          longitude: '4.90',
+          current: 'temperature_2m',
+        },
+      }),
+    );
   });
 
   it('reports unconfigured status for an unknown source', async () => {

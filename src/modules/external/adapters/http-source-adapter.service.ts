@@ -73,9 +73,13 @@ export class HttpSourceAdapterService implements HttpSourceAdapter {
     }
 
     try {
-      await axios.get(source.baseUrl, {
-        timeout: Math.min(source.timeoutMs, 3000),
-      });
+      await axios.get(
+        `${source.baseUrl.replace(/\/$/, '')}${source.healthCheck?.path || ''}`,
+        {
+          params: source.healthCheck?.params,
+          timeout: Math.min(source.timeoutMs, 3000),
+        },
+      );
       return { source: sourceName, status: 'ok' };
     } catch {
       return { source: sourceName, status: 'unreachable' };
