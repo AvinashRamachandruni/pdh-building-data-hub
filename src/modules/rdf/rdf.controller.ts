@@ -18,6 +18,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { RdfService } from './rdf.service';
+import { LocalRdfEvaluationOnly } from '../../auth/public.decorator';
 import {
   RDFEntity,
   RDFEntityResponse,
@@ -198,6 +199,7 @@ export class RdfController {
    * Throws 404 if the entity is not found
    */
   @Get('id/:id')
+  @LocalRdfEvaluationOnly()
   @ApiOperation({ summary: 'Get a specific IFC entity by ID' })
   @ApiParam({ name: 'id', description: 'Entity ID' })
   @ApiResponse({
@@ -229,6 +231,7 @@ export class RdfController {
    * Returns a single entity based on the provided type
    */
   @Get('type/:entityType')
+  @LocalRdfEvaluationOnly()
   @ApiOperation({ summary: 'Get all entities of a specific IFC type' })
   @ApiResponse({
     status: 200,

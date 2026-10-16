@@ -1,3 +1,15 @@
+## API Versioning
+
+The current API version is `2.2` (package/release version `2.2.0`).
+Endpoints are available under `/v2.2`, for example `GET /v2.2/files`,
+`GET /v2.2/sensors`, and `GET /v2.2/rdf/id/:id`.
+Swagger UI remains at `/api` and displays version `2.2` and the versioned routes.
+
+Existing unversioned URLs remain available as aliases to the current API so
+existing clients continue to work. The endpoint examples below use these
+unversioned aliases. `GET /health` also remains available for health checks.
+Other version prefixes, such as `/v2.1`, are not implemented by this release.
+
 ## General Instructions
 
 This NestJS application can simply be deployed locally using the standard node deployment process.

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/platform-fastify';
 import { ConfigService } from '@nestjs/config';
 import multipart from '@fastify/multipart';
+import { API_VERSION, configureApiVersioning } from './config/api-version';
 
 class TimestampFreeLogger extends ConsoleLogger {
   protected formatMessage(
@@ -37,6 +38,8 @@ async function bootstrap() {
     },
   );
 
+  configureApiVersioning(app);
+
   await app.register(multipart, {
     limits: { fileSize: 50 * 1024 * 1024, files: 1, fields: 1, parts: 2 },
   });
@@ -50,7 +53,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Personalised Building Data Hub API')
     .setDescription('API for PDH')
-    .setVersion('3.0.0')
+    .setVersion(API_VERSION)
     .addBearerAuth()
     .addOAuth2()
     .addServer('/')
